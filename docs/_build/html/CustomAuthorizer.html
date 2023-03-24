@@ -84,8 +84,55 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="customauthorizer-documentation">
-<h1>CustomAuthorizer Documentation<a class="headerlink" href="#customauthorizer-documentation" title="Permalink to this headline"></a></h1>
+  <section id="module-CustomAuthorizer.index">
+<span id="customauthorizer-documentation"></span><h1>CustomAuthorizer Documentation<a class="headerlink" href="#module-CustomAuthorizer.index" title="Permalink to this headline"></a></h1>
+<p>This function authorizes an API Gateway request using an API key stored in AWS Secrets Manager. The API key is cached in environment variables to avoid unnecessary calls to AWS Secrets Manager. This function is intended to be used as a custom authorizer for API Gateway.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="CustomAuthorizer.index.fetch_secret_value">
+<span class="sig-prename descclassname"><span class="pre">CustomAuthorizer.index.</span></span><span class="sig-name descname"><span class="pre">fetch_secret_value</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/CustomAuthorizer/index.html#fetch_secret_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CustomAuthorizer.index.fetch_secret_value" title="Permalink to this definition"></a></dt>
+<dd><p>Fetches the secret value from AWS Secrets Manager and caches it in environment variables.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A dictionary containing the secret value.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="CustomAuthorizer.index.generate_policy">
+<span class="sig-prename descclassname"><span class="pre">CustomAuthorizer.index.</span></span><span class="sig-name descname"><span class="pre">generate_policy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">principal_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">effect</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resource</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/CustomAuthorizer/index.html#generate_policy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CustomAuthorizer.index.generate_policy" title="Permalink to this definition"></a></dt>
+<dd><p>Generates a policy for API Gateway authorization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>principal_id</strong> – The principal ID.</p></li>
+<li><p><strong>effect</strong> – The effect of the policy (Allow/Deny).</p></li>
+<li><p><strong>resource</strong> – The resource to authorize access to.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary containing the authorization policy.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="CustomAuthorizer.index.lambda_handler">
+<span class="sig-prename descclassname"><span class="pre">CustomAuthorizer.index.</span></span><span class="sig-name descname"><span class="pre">lambda_handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/CustomAuthorizer/index.html#lambda_handler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CustomAuthorizer.index.lambda_handler" title="Permalink to this definition"></a></dt>
+<dd><p>Authorizes an API Gateway request.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event</strong> – A dictionary containing the API Gateway event.</p></li>
+<li><p><strong>context</strong> – The Lambda context object.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary containing the authorization policy.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <section id="code">
 <h2>Code<a class="headerlink" href="#code" title="Permalink to this headline"></a></h2>
 <p>This section defines the code that will be used to handle the request.</p>

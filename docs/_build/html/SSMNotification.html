@@ -84,8 +84,203 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="ssmnotification-documentation">
-<h1>SSMNotification Documentation<a class="headerlink" href="#ssmnotification-documentation" title="Permalink to this headline"></a></h1>
+  <section id="module-SSMNotification.index">
+<span id="ssmnotification-documentation"></span><h1>SSMNotification Documentation<a class="headerlink" href="#module-SSMNotification.index" title="Permalink to this headline"></a></h1>
+<p>This function is triggered by SNS topic when SSM document execution is completed, failed or timed out.
+This function will fetch the instance id from the SNS message and fetch the theater details from dynamodb table using instance id.
+This function will fetch the SSM document execution details from SSM using command id.
+This function will send an email to the theater email id with the SSM document execution details.
+This function will store the SSM document execution details in dynamodb table.</p>
+<dl class="simple">
+<dt>Functions:</dt><dd><ul class="simple">
+<li><p>lambda_handler: The main function of the Lambda function. This function is triggered by an SNS topic. The function uses the AWS Systems Manager (SSM) API to query the status of the SSM Agent on the EC2 instances.</p></li>
+<li><p>verify_email_identity: Verifies the email identity.</p></li>
+<li><p>get_instance_details: Gets the theater details from dynamodb table using instance id.</p></li>
+<li><p>get_command_details: Gets the SSM document execution details from SSM using command id.</p></li>
+<li><p>send_notification: Sends an email to the theater email id with the SSM document execution details.</p></li>
+<li><p>store_status_in_dynamodb: Stores the SSM document execution details in dynamodb table.</p></li>
+<li><p>clean_data: Cleans the SSM document execution details.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.clean_data">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">clean_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">command_details</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#clean_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.clean_data" title="Permalink to this definition"></a></dt>
+<dd><p>Clean the SSM document execution details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>command_details</strong> (<em>dict</em>) – SSM document execution details.</p></li>
+<li><p><strong>message</strong> (<em>dict</em>) – SNS message.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>str</em> – Folder name.</p></li>
+<li><p><em>str</em> – Info.</p></li>
+<li><p><em>str</em> – Start time.</p></li>
+<li><p><em>str</em> – End time.</p></li>
+<li><p><em>str</em> – Current time.</p></li>
+<li><p><em>str</em> – Status.</p></li>
+<li><p><em>str</em> – Command id.</p></li>
+<li><p><em>str</em> – Output.</p></li>
+<li><p><em>str</em> – Error.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">clean_data</span><span class="p">(</span><span class="n">command_details</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+<span class="go">(&#39;folder_name&#39;, &#39;info&#39;, &#39;start_time&#39;, &#39;end_time&#39;, &#39;current_time&#39;, &#39;status&#39;, &#39;command_id&#39;, &#39;output&#39;, &#39;error&#39;)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.download_csv">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">download_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bucket</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#download_csv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.download_csv" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.extract_info">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">extract_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#extract_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.extract_info" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.format_time">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">format_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_sec</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#format_time"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.format_time" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.get_command_details">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">get_command_details</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">command_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ssm_client</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#get_command_details"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.get_command_details" title="Permalink to this definition"></a></dt>
+<dd><p>Fetch command details from SSM run command history using command id.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>command_id</strong> (<em>str</em>) – Command id.</p></li>
+<li><p><strong>instance_id</strong> (<em>str</em>) – Instance id.</p></li>
+<li><p><strong>ssm_client</strong> (<em>boto3.client</em>) – SSM client.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>dict</em> – SSM command details.</p></li>
+<li><p><em>str</em> – Error message if command details are not fetched from SSM run command history.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.get_instance_details">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">get_instance_details</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instance_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#get_instance_details"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.get_instance_details" title="Permalink to this definition"></a></dt>
+<dd><p>Fetch instance id from dynamodb table using theater_id and return instance id for each theater.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>instance_id</strong> (<em>str</em>) – Instance id.</p></li>
+<li><p><strong>table</strong> (<em>str</em>) – DynamoDB table name.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>list</em> – List of instance ids.</p></li>
+<li><p><em>str</em> – Error message if instance id is not fetched from dynamodb table.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.lambda_handler">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">lambda_handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#lambda_handler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.lambda_handler" title="Permalink to this definition"></a></dt>
+<dd><p>Lambda handler function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event</strong> (<em>dict</em>) – Event data.</p></li>
+<li><p><strong>context</strong> (<em>object</em>) – Lambda Context runtime methods and attributes.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>dict</em> – Response.</p></li>
+<li><p><em>str</em> – Error message if any.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.send_notification">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">send_notification</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theaterName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command_details</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theater_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#send_notification"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.send_notification" title="Permalink to this definition"></a></dt>
+<dd><p>Send notification to the user using SES.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>email</strong> (<em>str</em>) – Email address.</p></li>
+<li><p><strong>theaterName</strong> (<em>str</em>) – Theater name.</p></li>
+<li><p><strong>command_details</strong> (<em>dict</em>) – SSM command details.</p></li>
+<li><p><strong>message</strong> (<em>dict</em>) – SSM command message.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>dict</em> – SNS response.</p></li>
+<li><p><em>str</em> – Error message if notification is not sent.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.store_status_in_dynamodb">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">store_status_in_dynamodb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">command_details</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theater_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#store_status_in_dynamodb"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.store_status_in_dynamodb" title="Permalink to this definition"></a></dt>
+<dd><p>Store the status of the SSM document execution in dynamodb table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>command_details</strong> (<em>dict</em>) – SSM document execution details.</p></li>
+<li><p><strong>theater_id</strong> (<em>str</em>) – Theater id.</p></li>
+<li><p><strong>message</strong> (<em>dict</em>) – SNS message.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>bool</em> – True if status is stored in dynamodb table else False.</p></li>
+<li><p><em>str</em> – Error message if status is not stored in dynamodb table.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="SSMNotification.index.verify_email_identity">
+<span class="sig-prename descclassname"><span class="pre">SSMNotification.index.</span></span><span class="sig-name descname"><span class="pre">verify_email_identity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email_from</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ses_client</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SSMNotification/index.html#verify_email_identity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SSMNotification.index.verify_email_identity" title="Permalink to this definition"></a></dt>
+<dd><p>SES , create new using the environment variable EMAIL_FROM if not present. Else, use the existing one.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>email_from</strong> (<em>str</em>) – Email address.</p></li>
+<li><p><strong>ses_client</strong> (<em>boto3.client</em>) – SES client.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>str</em> – Email address.</p></li>
+<li><p><em>str</em> – Error message if email address is not verified.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
 <section id="code">
 <h2>Code<a class="headerlink" href="#code" title="Permalink to this headline"></a></h2>
 <p>This section defines the code that is used.</p>

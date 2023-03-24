@@ -84,8 +84,148 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="dashboardfunction-documentation">
-<h1>DashboardFunction Documentation<a class="headerlink" href="#dashboardfunction-documentation" title="Permalink to this headline"></a></h1>
+  <section id="module-DashboardFunction.index">
+<span id="dashboardfunction-documentation"></span><h1>DashboardFunction Documentation<a class="headerlink" href="#module-DashboardFunction.index" title="Permalink to this headline"></a></h1>
+<p>This module provides a Lambda function that generates a table of AWS cost and usage data or a table of AWS System Manager (SSM) command invocation statuses based on user input. The function is triggered by an AWS CloudWatch dashboard widget.</p>
+<dl class="simple">
+<dt>Functions:</dt><dd><ul class="simple">
+<li><p>generate_table_cost(data): Generates an HTML table with AWS cost and usage data.</p></li>
+<li><p>generate_table_ssm(data): Generates an HTML table with SSM command statuses.</p></li>
+<li><p>convert_filter(filter_input, start_time, end_time): Formats start and end times and adds input filter to a list.</p></li>
+<li><p>get_command_statuses(start_time, end_time): Returns a dictionary of counts for each SSM command invocation status type.</p></li>
+<li><p>get_cost_usage(start_time, end_time): Returns an HTML table of AWS cost and usage data grouped by service.</p></li>
+<li><p>lambda_handler(event, context): Main Lambda function that determines which function to run based on user input and returns the result as an HTML table.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.convert_filter">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">convert_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#convert_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.convert_filter" title="Permalink to this definition"></a></dt>
+<dd><p>Convert the input filter into a format that can be used with AWS Systems Manager ListCommands API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filter_input</strong> (<em>dict</em>) – A dictionary representing the filter to be converted.</p></li>
+<li><p><strong>start_time</strong> (<em>int</em>) – The start time in milliseconds.</p></li>
+<li><p><strong>end_time</strong> (<em>int</em>) – The end time in milliseconds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A list of dictionaries representing the converted filter.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.generate_table_cost">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">generate_table_cost</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#generate_table_cost"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.generate_table_cost" title="Permalink to this definition"></a></dt>
+<dd><p>Generate an HTML table with AWS cost usage.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – A dictionary containing AWS cost usage.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>An HTML table with AWS cost usage.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;AWS Lambda&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0000001&#39;</span><span class="p">,</span> <span class="s1">&#39;Amazon RDS&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0000002&#39;</span><span class="p">,</span> <span class="s1">&#39;Amazon S3&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0000003&#39;</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">generate_table_cost</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="go">&#39;&lt;table&gt;...&lt;/table&gt;&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.generate_table_ssm">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">generate_table_ssm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#generate_table_ssm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.generate_table_ssm" title="Permalink to this definition"></a></dt>
+<dd><p>Generate an HTML table with SSM command statuses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – A dictionary containing SSM command statuses.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>An HTML table with SSM command statuses.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Pending&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;InProgress&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;Success&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;Cancelled&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Failed&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;TimedOut&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="s1">&#39;DeliveryTimedOut&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;ExecutionTimedOut&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Incomplete&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;LimitExceeded&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">generate_table_ssm</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="go">&#39;&lt;table&gt;...&lt;/table&gt;&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.get_command_statuses">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">get_command_statuses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#get_command_statuses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.get_command_statuses" title="Permalink to this definition"></a></dt>
+<dd><p>Get the number of AWS Systems Manager commands in each status during the specified time period.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_time</strong> (<em>int</em>) – The start time in milliseconds.</p></li>
+<li><p><strong>end_time</strong> (<em>int</em>) – The end time in milliseconds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary where the keys are command statuses and the values are the number of commands in that status.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.get_cost_usage">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">get_cost_usage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#get_cost_usage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.get_cost_usage" title="Permalink to this definition"></a></dt>
+<dd><p>Get the cost and usage breakdown by AWS service during the specified time period.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_time</strong> (<em>int</em>) – The start time in milliseconds.</p></li>
+<li><p><strong>end_time</strong> (<em>int</em>) – The end time in milliseconds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A string representing an HTML table with the cost and usage breakdown by service.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.lambda_handler">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">lambda_handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#lambda_handler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.lambda_handler" title="Permalink to this definition"></a></dt>
+<dd><p>AWS Lambda function handler.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event</strong> (<em>dict</em>) – A dictionary representing the event that triggered the Lambda function.</p></li>
+<li><p><strong>context</strong> (<em>object</em>) – An object representing the runtime context of the Lambda function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A string representing an HTML table with the cost and usage breakdown by service, or the number of AWS Systems Manager commands in each status during the specified time period.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
 <section id="code">
 <h2>Code<a class="headerlink" href="#code" title="Permalink to this headline"></a></h2>
 <p>This section defines the code that  is used to create the dashboard.</p>

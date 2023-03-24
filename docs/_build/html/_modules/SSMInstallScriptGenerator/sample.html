@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SSMInstallScriptGenerator.sample &mdash; DCinema Distribution AWS Resources 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            DCinema Distribution AWS Resources
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../template.html">Cloudformation Template</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Lambda Function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">DCinema Distribution AWS Resources</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">SSMInstallScriptGenerator.sample</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for SSMInstallScriptGenerator.sample</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ask input from user for tenant name</span>
+<span class="c1"># use the input and call onboard tenant API to get activationID and activationCode as response</span>
+<span class="c1"># download amazon-ssm-agent.deb and install it using dpkg -i amazon-ssm-agent.deb</span>
+<span class="c1"># stop the service amazon-ssm-agent stop</span>
+<span class="c1"># use the activationID and activationCode to register the tenant by running sudo -E amazon-ssm-agent -register -code $code -id $id -region $region</span>
+<span class="c1"># start the service amazon-ssm-agent start</span>
+<span class="c1"># create cloudwatch alarms using api call</span>
+<span class="c1"># collect hostname, ip and use storage.json from local directory to store the data and call api to store the data</span>
+<span class="c1"># exit the script</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="n">Popen</span><span class="p">,</span> <span class="n">PIPE</span>
+
+
+<div class="viewcode-block" id="prRed"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.prRed">[docs]</a><span class="k">def</span> <span class="nf">prRed</span><span class="p">(</span><span class="n">prt</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[91m </span><span class="si">{}</span><span class="se">\033</span><span class="s2">[00m&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prt</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="prGreen"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.prGreen">[docs]</a><span class="k">def</span> <span class="nf">prGreen</span><span class="p">(</span><span class="n">prt</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[92m </span><span class="si">{}</span><span class="se">\033</span><span class="s2">[00m&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prt</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="prYellowC"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.prYellowC">[docs]</a><span class="k">def</span> <span class="nf">prYellowC</span><span class="p">(</span><span class="n">prt</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[93m </span><span class="si">{}</span><span class="se">\033</span><span class="s2">[00m&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prt</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="prYellow"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.prYellow">[docs]</a><span class="k">def</span> <span class="nf">prYellow</span><span class="p">(</span><span class="n">prt</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\33</span><span class="s2">[5m </span><span class="si">{}</span><span class="se">\033</span><span class="s2">[00m&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prt</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="get_args"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.get_args">[docs]</a><span class="k">def</span> <span class="nf">get_args</span><span class="p">():</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Process tenant name&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="s2">&quot;--tenant&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;tenant name&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">args</span></div>
+
+
+<div class="viewcode-block" id="get_activation_details"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.get_activation_details">[docs]</a><span class="k">def</span> <span class="nf">get_activation_details</span><span class="p">(</span><span class="n">theater_id</span><span class="p">,</span> <span class="n">os_name</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">):</span>
+    <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Getting activation details&quot;</span><span class="p">)</span>
+    <span class="kn">import</span> <span class="nn">requests</span>
+
+    <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;{{ ONBOARD_TENANT_URL }}&quot;</span>
+    <span class="c1"># url = &quot;https://pq5ymlotdc.execute-api.ap-south-1.amazonaws.com/Prod/ssmactivation&quot;</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;theater_id&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span>
+               <span class="s2">&quot;os&quot;</span><span class="p">:</span> <span class="n">os_name</span><span class="p">,</span> <span class="s2">&quot;theater_name&quot;</span><span class="p">:</span> <span class="n">theater_name</span><span class="p">}</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully got activation details&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Error: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()))</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="install_ssm_agent"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.install_ssm_agent">[docs]</a><span class="k">def</span> <span class="nf">install_ssm_agent</span><span class="p">(</span><span class="n">activation_details</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">):</span>
+    <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Starting installation of ssm agent&quot;</span><span class="p">)</span>
+    <span class="kn">import</span> <span class="nn">requests</span>
+
+    <span class="n">activation_id</span> <span class="o">=</span> <span class="n">activation_details</span><span class="p">[</span><span class="s2">&quot;ActivationId&quot;</span><span class="p">]</span>
+    <span class="n">activation_code</span> <span class="o">=</span> <span class="n">activation_details</span><span class="p">[</span><span class="s2">&quot;ActivationCode&quot;</span><span class="p">]</span>
+    <span class="n">region</span> <span class="o">=</span> <span class="n">activation_details</span><span class="p">[</span><span class="s2">&quot;Region&quot;</span><span class="p">]</span>
+    <span class="c1"># check if os is linux or windows and download the ssm agent accordingly</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;posix&quot;</span><span class="p">:</span>
+        <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Downloading ssm agent for linux&quot;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="s2">&quot;wget&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span> <span class="s2">&quot;dpkg&quot;</span><span class="p">,</span> <span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;amazon-ssm-agent.deb&quot;</span><span class="p">])</span>
+        <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully downloaded ssm agent&quot;</span><span class="p">)</span>
+        <span class="c1"># install the package</span>
+        <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Installing ssm agent&quot;</span><span class="p">)</span>
+
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span> <span class="s2">&quot;dpkg&quot;</span><span class="p">,</span> <span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;amazon-ssm-agent.deb&quot;</span><span class="p">])</span>
+        <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully installed ssm agent&quot;</span><span class="p">)</span>
+        <span class="n">stop_ssm_agent</span><span class="p">()</span>
+        <span class="c1"># get hostname</span>
+        <span class="n">hostname</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">([</span><span class="s2">&quot;hostname&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+
+        <span class="c1"># use the activationID and activationCode to register the tenant by running sudo -E amazon-ssm-agent -register -code $code -id $id -region $region</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;sudo -E amazon-ssm-agent -register -code </span><span class="si">{}</span><span class="s2"> -id </span><span class="si">{}</span><span class="s2"> -region </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span><span class="p">,</span> <span class="n">region</span>
+        <span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+        <span class="n">instanceID</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;/var/lib/amazon/ssm/registration&#39;</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">instance_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="n">instance_id</span> <span class="o">=</span> <span class="n">instance_data</span><span class="p">[</span><span class="s1">&#39;ManagedInstanceID&#39;</span><span class="p">]</span>
+            <span class="n">instanceID</span> <span class="o">=</span> <span class="n">instance_id</span>
+            <span class="n">test</span> <span class="o">=</span> <span class="n">save_registration_details</span><span class="p">(</span>
+                <span class="n">instanceID</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Error: Registration file not found&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully registered Theater&quot;</span><span class="p">)</span>
+        <span class="c1"># clean_up()</span>
+    <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;nt&quot;</span><span class="p">:</span>
+
+        <span class="n">tempPath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;TEMP&quot;</span><span class="p">)</span>
+
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="s2">&quot;powershell&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Invoke-WebRequest&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;https://amazon-ssm-ap-south-1.s3.ap-south-1.amazonaws.com/latest/windows_amd64/AmazonSSMAgentSetup.exe&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;-OutFile&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;.\AmazonSSMAgentSetup.exe&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="c1"># Start-Process .\AmazonSSMAgentSetup.exe -ArgumentList @(&quot;/q&quot;, &quot;/log&quot;, &quot;install.log&quot;, &quot;CODE=$code&quot;, &quot;ID=$id&quot;, &quot;REGION=$region&quot;) -Wait</span>
+
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="s2">&quot;powershell&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Start-Process&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;.\AmazonSSMAgentSetup.exe&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;-ArgumentList&quot;</span><span class="p">,</span>
+                <span class="s1">&#39;@(&quot;/q&quot;, &quot;/log&quot;, &quot;install.log&quot;, &quot;CODE=</span><span class="si">{}</span><span class="s1">&quot;, &quot;ID=</span><span class="si">{}</span><span class="s1">&quot;, &quot;REGION=</span><span class="si">{}</span><span class="s1">&quot;)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span><span class="p">,</span> <span class="n">region</span>
+                <span class="p">),</span>
+                <span class="s2">&quot;-Wait&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">hostname</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">([</span><span class="s2">&quot;hostname&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PROGRAMDATA&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">Amazon</span><span class="se">\\</span><span class="s2">SSM</span><span class="se">\\</span><span class="s2">InstanceData</span><span class="se">\\</span><span class="s2">registration&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">instance_id</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;ManagedInstanceID&quot;</span><span class="p">]</span>
+            <span class="n">region</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Region&quot;</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+        <span class="n">test</span> <span class="o">=</span> <span class="n">save_registration_details</span><span class="p">(</span>
+            <span class="n">instance_id</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
+        <span class="c1"># Get-Content ($env:ProgramData + &quot;\Amazon\SSM\InstanceData\registration&quot;)</span>
+        <span class="c1"># subprocess.call(</span>
+        <span class="c1">#     [</span>
+        <span class="c1">#         &quot;powershell&quot;,</span>
+        <span class="c1">#         &quot;Get-Content&quot;,</span>
+        <span class="c1">#         os.getenv(&quot;ProgramData&quot;) +</span>
+        <span class="c1">#         &quot;\Amazon\SSM\InstanceData\registration&quot;,</span>
+        <span class="c1">#     ]</span>
+        <span class="c1"># )</span>
+        <span class="c1"># # Get-Service -Name &quot;AmazonSSMAgent&quot;</span>
+        <span class="c1"># subprocess.call([&quot;powershell&quot;, &quot;Get-Service&quot;,</span>
+        <span class="c1">#                 &quot;-Name&quot;, &quot;AmazonSSMAgent&quot;])</span>
+        <span class="c1"># clean_up()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Error: OS not supported&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+    <span class="c1"># download amazon-ssm-agent.deb from https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb</span>
+    <span class="c1"># download from url</span>
+    <span class="c1"># url = &quot;https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb&quot;</span>
+    <span class="c1"># r = requests.get(url, allow_redirects=True)</span>
+    <span class="c1"># open(&#39;amazon-ssm-agent.deb&#39;, &#39;wb&#39;).write(r.content)</span>
+
+
+<span class="c1"># check up function to delete amazon-ssm-agent.deb , get-pip.py and storage.json. Uninstall the package requests and delete the file</span>
+
+
+<div class="viewcode-block" id="clean_up"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.clean_up">[docs]</a><span class="k">def</span> <span class="nf">clean_up</span><span class="p">():</span>
+    <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Cleaning up&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;posix&quot;</span><span class="p">:</span>
+        <span class="c1"># remove amazon-ssm-agent.deb, get-pip.py and storage.json if present</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;amazon-ssm-agent.deb&quot;</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;amazon-ssm-agent.deb&quot;</span><span class="p">)</span>
+            <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully removed amazon-ssm-agent.deb&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;get-pip.py&quot;</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;get-pip.py&quot;</span><span class="p">)</span>
+            <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully removed get-pip.py&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;storage.json&quot;</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;storage.json&quot;</span><span class="p">)</span>
+            <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully removed storage.json&quot;</span><span class="p">)</span>
+        <span class="c1"># uninstall requests</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span> <span class="s2">&quot;pip&quot;</span><span class="p">,</span> <span class="s2">&quot;uninstall&quot;</span><span class="p">,</span> <span class="s2">&quot;-y&quot;</span><span class="p">,</span> <span class="s2">&quot;requests&quot;</span><span class="p">])</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[48;5;236m</span><span class="se">\033</span><span class="s2">[38;5;231mThe script seems to have completed successfully, please check the status of SSM agent by running </span><span class="se">\033</span><span class="s2">[38;5;208m&#39;systemctl status amazon-ssm-agent&#39;</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span>
+        <span class="p">)</span>
+        <span class="nb">dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="nb">dir</span> <span class="o">+</span> <span class="s2">&quot;/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;nt&quot;</span><span class="p">:</span>
+        <span class="c1"># os.getenv(&quot;TEMP&quot;) + &#39;\SSMAgent_latest.exe&#39;</span>
+
+        <span class="c1"># remove amazon-ssm-agent.deb, get-pip.py and storage.json if present</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;TEMP&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;\SSMAgent_latest.exe&quot;</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;TEMP&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;\SSMAgent_latest.exe&quot;</span><span class="p">)</span>
+            <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully removed amazon-ssm-agent.deb&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;TEMP&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;\get-pip.py&quot;</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;TEMP&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;\get-pip.py&quot;</span><span class="p">)</span>
+            <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully removed get-pip.py&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;TEMP&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;\storage.json&quot;</span><span class="p">):</span>
+
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;TEMP&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;\storage.json&quot;</span><span class="p">)</span>
+            <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully removed storage.json&quot;</span><span class="p">)</span>
+        <span class="c1"># uninstall requests</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;powershell&quot;</span><span class="p">,</span> <span class="s2">&quot;pip&quot;</span><span class="p">,</span> <span class="s2">&quot;uninstall&quot;</span><span class="p">,</span> <span class="s2">&quot;-y&quot;</span><span class="p">,</span> <span class="s2">&quot;requests&quot;</span><span class="p">])</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[48;5;236m</span><span class="se">\033</span><span class="s2">[38;5;231mThe script seems to have completed successfully, please check the status of SSM agent by running </span><span class="se">\033</span><span class="s2">[38;5;208m&#39;systemctl status amazon-ssm-agent&#39;</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span>
+        <span class="p">)</span>
+        <span class="nb">dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="nb">dir</span> <span class="o">+</span> <span class="s2">&quot;/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Error: OS not supported&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="stop_ssm_agent"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.stop_ssm_agent">[docs]</a><span class="k">def</span> <span class="nf">stop_ssm_agent</span><span class="p">():</span>
+    <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Stopping ssm agent&quot;</span><span class="p">)</span>
+    <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span> <span class="s2">&quot;amazon-ssm-agent&quot;</span><span class="p">,</span> <span class="s2">&quot;stop&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="start_ssm_agent"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.start_ssm_agent">[docs]</a><span class="k">def</span> <span class="nf">start_ssm_agent</span><span class="p">():</span>
+    <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Starting ssm agent&quot;</span><span class="p">)</span>
+    <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span> <span class="s2">&quot;amazon-ssm-agent&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="save_registration_details"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.save_registration_details">[docs]</a><span class="k">def</span> <span class="nf">save_registration_details</span><span class="p">(</span><span class="n">machine_id</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">,</span> <span class="n">hostname</span><span class="p">):</span>
+    <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Saving activation details&quot;</span><span class="p">)</span>
+    <span class="kn">import</span> <span class="nn">requests</span>
+
+    <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;{{ SAVE_ACTIVATION_URL }}&quot;</span>
+    <span class="c1"># url = &quot;https://pq5ymlotdc.execute-api.ap-south-1.amazonaws.com/Prod/ssmactivation&quot;</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;machine_id&quot;</span><span class="p">:</span> <span class="n">machine_id</span><span class="p">,</span>
+               <span class="s2">&quot;theater_id&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span> <span class="s2">&quot;theater_name&quot;</span><span class="p">:</span> <span class="n">theater_name</span><span class="p">,</span> <span class="s2">&quot;theater_email&quot;</span><span class="p">:</span> <span class="n">theater_email</span><span class="p">,</span> <span class="s2">&quot;hostname&quot;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">}</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully saved activation details&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Error: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()))</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">():</span>
+    <span class="k">try</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;posix&quot;</span><span class="p">:</span>
+            <span class="n">os_name</span> <span class="o">=</span> <span class="s2">&quot;LINUX/OnPrem&quot;</span>
+        <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;nt&quot;</span><span class="p">:</span>
+            <span class="n">os_name</span> <span class="o">=</span> <span class="s2">&quot;WINDOWS/OnPrem&quot;</span>
+
+        <span class="c1"># ask for theater id and tenant name from user</span>
+        <span class="c1"># theater_id = input(&quot;Enter theater id: &quot;)</span>
+        <span class="n">theater_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter theater id: &quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">theater_id</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Theater id should not be a number&quot;</span><span class="p">)</span>
+
+        <span class="n">theater_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter theater name: &quot;</span><span class="p">))</span>
+        <span class="n">theater_email</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter theater email: &quot;</span><span class="p">))</span>
+
+        <span class="c1"># theater_id = &quot;theater-1&quot;</span>
+
+        <span class="c1"># tenant_name = &quot;Services-Tenant&quot;</span>
+        <span class="n">activation_details</span> <span class="o">=</span> <span class="n">get_activation_details</span><span class="p">(</span>
+            <span class="n">theater_id</span><span class="p">,</span> <span class="n">os_name</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">)</span>
+        <span class="c1"># check os path /lib/systemd/system/amazon-ssm-agent.service</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;posix&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;/lib/systemd/system/amazon-ssm-agent.service&quot;</span><span class="p">):</span>
+                <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;SSM agent is already installed&quot;</span><span class="p">)</span>
+                <span class="c1"># create_cloudwatch_alarms(&quot;storage.json&quot;)</span>
+                <span class="n">reRegister</span><span class="p">(</span><span class="n">activation_details</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">)</span>
+                <span class="c1"># clean_up()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;SSM agent is not installed&quot;</span><span class="p">)</span>
+                <span class="n">install_ssm_agent</span><span class="p">(</span><span class="n">activation_details</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span>
+                                  <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;nt&quot;</span><span class="p">:</span>
+            <span class="c1"># check for path C:\ProgramData\Amazon\SSM\InstanceData</span>
+            <span class="n">hostanme</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span>
+                <span class="p">[</span><span class="s2">&quot;powershell&quot;</span><span class="p">,</span> <span class="s2">&quot;hostname&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PROGRAMDATA&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;\Amazon\SSM\InstanceData&quot;</span><span class="p">):</span>
+                <span class="c1"># read file registration and parse the json to get instanceID from {&quot;ManagedInstanceID&quot;:&quot;mi-065997545cc7a09b3&quot;,&quot;Region&quot;:&quot;ap-south-1&quot;}</span>
+
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PROGRAMDATA&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">Amazon</span><span class="se">\\</span><span class="s2">SSM</span><span class="se">\\</span><span class="s2">InstanceData</span><span class="se">\\</span><span class="s2">registration&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                    <span class="n">instance_id</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;ManagedInstanceID&quot;</span><span class="p">]</span>
+                    <span class="n">region</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Region&quot;</span><span class="p">]</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+                <span class="n">test</span> <span class="o">=</span> <span class="n">save_registration_details</span><span class="p">(</span>
+                    <span class="n">instance_id</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">,</span> <span class="n">hostanme</span><span class="p">)</span>
+                <span class="n">prGreen</span><span class="p">(</span>
+                    <span class="s2">&quot;SSM agent is already installed and the machine ID is </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">instance_id</span><span class="p">))</span>
+                <span class="c1"># create_cloudwatch_alarms(&quot;storage.json&quot;)</span>
+                <span class="c1"># reRegister(activation_details, theater_id, theater_name)</span>
+                <span class="c1"># clean_up()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;SSM agent is not installed&quot;</span><span class="p">)</span>
+                <span class="n">install_ssm_agent</span><span class="p">(</span><span class="n">activation_details</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span>
+                                  <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Error: OS not supported&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Error: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="reRegister"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.reRegister">[docs]</a><span class="k">def</span> <span class="nf">reRegister</span><span class="p">(</span><span class="n">activation</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">):</span>
+    <span class="n">activation_id</span> <span class="o">=</span> <span class="n">activation</span><span class="p">[</span><span class="s2">&quot;ActivationId&quot;</span><span class="p">]</span>
+    <span class="n">activation_code</span> <span class="o">=</span> <span class="n">activation</span><span class="p">[</span><span class="s2">&quot;ActivationCode&quot;</span><span class="p">]</span>
+    <span class="n">region</span> <span class="o">=</span> <span class="s2">&quot;ap-south-1&quot;</span>
+
+    <span class="n">service</span> <span class="o">=</span> <span class="s2">&quot;amazon-ssm-agent&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;posix&quot;</span><span class="p">:</span>
+        <span class="c1"># use os.system to run the command</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;echo yes | sudo amazon-ssm-agent -register -code </span><span class="si">{}</span><span class="s2"> -id </span><span class="si">{}</span><span class="s2"> -region ap-south-1&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span>
+        <span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+        <span class="c1"># restart the service</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;sudo systemctl restart </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">service</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+
+        <span class="c1"># check if the service is active</span>
+        <span class="n">isActive</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">&quot;systemctl&quot;</span><span class="p">,</span> <span class="s2">&quot;is-active&quot;</span><span class="p">,</span> <span class="s2">&quot;amazon-ssm-agent&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">isActive</span> <span class="o">=</span> <span class="n">isActive</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="n">isActive</span> <span class="o">=</span> <span class="n">isActive</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">hostname</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">&quot;hostname&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">isActive</span> <span class="o">==</span> <span class="s2">&quot;active&quot;</span><span class="p">:</span>
+
+            <span class="n">instanceID</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;/var/lib/amazon/ssm/registration&#39;</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">instance_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                    <span class="n">instance_id</span> <span class="o">=</span> <span class="n">instance_data</span><span class="p">[</span><span class="s1">&#39;ManagedInstanceID&#39;</span><span class="p">]</span>
+                <span class="n">instanceID</span> <span class="o">=</span> <span class="n">instance_id</span>
+                <span class="n">test</span> <span class="o">=</span> <span class="n">save_registration_details</span><span class="p">(</span>
+                    <span class="n">instanceID</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">,</span> <span class="n">hostname</span><span class="p">)</span>
+            <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;SSM agent is active&quot;</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;SSM agent is not installed&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;nt&quot;</span><span class="p">:</span>
+        <span class="c1"># use subprocess.call to run the command &#39;yes&#39; | &amp; &#39;C:\Program Files\Amazon\SSM\amazon-ssm-agent.exe&#39; -register -code activation-code -id activation-id -region region; Restart-Service AmazonSSMAgent</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="s2">&quot;yes&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;|&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;C:</span><span class="se">\\</span><span class="s2">Program Files</span><span class="se">\\</span><span class="s2">Amazon</span><span class="se">\\</span><span class="s2">SSM</span><span class="se">\\</span><span class="s2">amazon-ssm-agent.exe&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;-register&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;-code&quot;</span><span class="p">,</span>
+                <span class="n">activation_code</span><span class="p">,</span>
+                <span class="s2">&quot;-id&quot;</span><span class="p">,</span>
+                <span class="n">activation_id</span><span class="p">,</span>
+                <span class="s2">&quot;-region&quot;</span><span class="p">,</span>
+                <span class="n">region</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../SSMInstallScriptGenerator.html#SSMInstallScriptGenerator.sample.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="c1"># check if package requests is installed if not install it and then call all the functions</span>
+
+    <span class="n">prYellow</span><span class="p">(</span><span class="s2">&quot;Checking requirements&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">requests</span>
+
+        <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;All required modules available&quot;</span><span class="p">)</span>
+        <span class="n">prYellowC</span><span class="p">(</span>
+            <span class="s2">&quot;Do you want to install ssm agent? </span><span class="se">\033</span><span class="s2">[38;5;208m Type &#39;1&#39; for YES / &#39;2&#39; for NO :</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span>
+        <span class="p">)</span>
+        <span class="n">choice</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">choice</span> <span class="o">==</span> <span class="s2">&quot;1&quot;</span><span class="p">:</span>
+            <span class="n">run</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">choice</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">prYellowC</span><span class="p">(</span>
+                <span class="s2">&quot;Do you want to create cloudwatch alarms? </span><span class="se">\033</span><span class="s2">[38;5;208m Type &#39;1&#39; for YES / &#39;2&#39; for NO :</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span>
+            <span class="p">)</span>
+            <span class="n">choice</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">choice</span> <span class="o">==</span> <span class="s2">&quot;1&quot;</span><span class="p">:</span>
+                <span class="n">tenant_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Services-Tenant&quot;</span><span class="p">,</span> <span class="s2">&quot;Star-Tenant&quot;</span><span class="p">]</span>
+                <span class="c1"># create menu to select tenant</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[48;5;236m</span><span class="se">\033</span><span class="s2">[38;5;231mSelect the tenant to register with SSM agent</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tenant</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tenant_list</span><span class="p">):</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[48;5;236m</span><span class="se">\033</span><span class="s2">[38;5;231m</span><span class="si">{}</span><span class="s2">. </span><span class="si">{}</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">tenant</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="n">tenant_choice</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                    <span class="nb">input</span><span class="p">(</span>
+                        <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[48;5;236m</span><span class="se">\033</span><span class="s2">[38;5;231mEnter your choice: </span><span class="se">\033</span><span class="s2">[0;0m&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">tenant_choice</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">tenant_list</span><span class="p">):</span>
+                    <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Invalid choice&quot;</span><span class="p">)</span>
+                    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">tenant_name</span> <span class="o">=</span> <span class="n">tenant_list</span><span class="p">[</span><span class="n">tenant_choice</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="c1"># clean_up()</span>
+
+            <span class="k">elif</span> <span class="n">choice</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Wrong input&quot;</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Wrong input&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Requests package is not installed. Installing it now&quot;</span><span class="p">)</span>
+        <span class="c1"># install pip using curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py</span>
+        <span class="c1"># run python get-pip.py</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://bootstrap.pypa.io/pip/2.7/get-pip.py&quot;</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;curl&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="s2">&quot;get-pip.py&quot;</span><span class="p">])</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;get-pip.py&quot;</span><span class="p">])</span>
+
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;pip&quot;</span><span class="p">,</span> <span class="s2">&quot;install&quot;</span><span class="p">,</span> <span class="s2">&quot;requests&quot;</span><span class="p">])</span>
+        <span class="n">prGreen</span><span class="p">(</span><span class="s2">&quot;Successfully installed requests&quot;</span><span class="p">)</span>
+        <span class="kn">import</span> <span class="nn">requests</span>
+
+        <span class="c1"># ask user input of 1 or 2 to install ssm agent or to run create_cloudwatch_alarms function</span>
+        <span class="n">prYellowC</span><span class="p">(</span>
+            <span class="s2">&quot;Do you want to install ssm agent? </span><span class="se">\033</span><span class="s2">[38;5;208m Type &#39;1&#39; for YES / &#39;2&#39; for NO :</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span>
+        <span class="p">)</span>
+        <span class="n">choice</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">choice</span> <span class="o">==</span> <span class="s2">&quot;1&quot;</span><span class="p">:</span>
+            <span class="n">run</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">choice</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">prYellowC</span><span class="p">(</span>
+                <span class="s2">&quot;Do you want to create cloudwatch alarms? </span><span class="se">\033</span><span class="s2">[38;5;208m Type &#39;1&#39; for YES / &#39;2&#39; for NO :</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span>
+            <span class="p">)</span>
+            <span class="n">choice</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">choice</span> <span class="o">==</span> <span class="s2">&quot;1&quot;</span><span class="p">:</span>
+                <span class="n">tenant_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Services-Tenant&quot;</span><span class="p">,</span> <span class="s2">&quot;Star-Tenant&quot;</span><span class="p">,</span> <span class="s2">&quot;New-Tenant&quot;</span><span class="p">]</span>
+                <span class="c1"># create menu to select tenant</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[48;5;236m</span><span class="se">\033</span><span class="s2">[38;5;231mSelect the tenant to register with SSM agent</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tenant</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tenant_list</span><span class="p">):</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[48;5;236m</span><span class="se">\033</span><span class="s2">[38;5;231m</span><span class="si">{}</span><span class="s2">. </span><span class="si">{}</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">tenant</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="n">tenant_choice</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                    <span class="nb">input</span><span class="p">(</span>
+                        <span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[48;5;236m</span><span class="se">\033</span><span class="s2">[38;5;231mEnter your choice: </span><span class="se">\033</span><span class="s2">[0;0m&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">tenant_choice</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">tenant_list</span><span class="p">):</span>
+                    <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Invalid choice&quot;</span><span class="p">)</span>
+                    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">tenant_name</span> <span class="o">=</span> <span class="n">tenant_list</span><span class="p">[</span><span class="n">tenant_choice</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="c1"># clean_up()</span>
+            <span class="k">elif</span> <span class="n">choice</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Wrong input&quot;</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prRed</span><span class="p">(</span><span class="s2">&quot;Wrong input&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+
+<span class="c1"># vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4</span>
+<span class="c1"># vi: set ft=python:</span>
+<span class="c1"># EOF</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Prime Focus.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
