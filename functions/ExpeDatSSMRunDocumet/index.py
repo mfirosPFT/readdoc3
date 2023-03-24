@@ -31,7 +31,7 @@ logger = Logger()
 dynamodb = boto3.resource("dynamodb", region_name=os.environ['AWS_REGION'])
 dynamodb_table = os.environ.get('DYNAMODB_TABLE')
 table = dynamodb.Table(dynamodb_table)
-ssm_client = boto3.client("ssm", region_name=os.environ['AWS_REGION'])
+ssm_client = boto3.client('ssm', region_name=os.environ['AWS_REGION'])
 s3 = boto3.client('s3', region_name=os.environ['AWS_REGION'])
 
 # initialize environment variables
