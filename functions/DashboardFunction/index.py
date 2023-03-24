@@ -19,7 +19,7 @@ session = boto3.Session()
 cost_explorer = session.client("ce")
 document_name = os.environ['SSM_DOCUMENT_NAME']
 project = os.environ['PROJECT_NAME']
-ssm_client = boto3.client("ssm")
+ssm_client = boto3.client("ssm", region_name=os.environ['AWS_REGION'])
 
 
 def generate_table_ssm(data):

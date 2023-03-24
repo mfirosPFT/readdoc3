@@ -42,16 +42,16 @@ metrics = Metrics()
 logger = Logger()
 
 # initialize boto3 client and resource
-dynamodb = boto3.resource("dynamodb")
+dynamodb = boto3.resource("dynamodb", region_name=os.environ.get('AWS_REGION'))
 dynamodb_table = os.environ.get('DYNAMODB_TABLE')
 # dynamodb_table_index = os.environ.get('DYNAMODB_TABLE_INDEX')
 dynamodb_table_index = "InstanceIdIndex"
 emailfrom = os.environ.get('EMAIL_FROM')
 table = dynamodb.Table(dynamodb_table)
-ssm_client = boto3.client("ssm")
-ses_client = boto3.client("ses")
+ssm_client = boto3.client("ssm", region_name=os.environ.get('AWS_REGION'))
+ses_client = boto3.client("ses", region_name=os.environ.get('AWS_REGION'))
 status_table = os.environ.get('STATUS_TABLE')
-s3_client = boto3.client("s3")
+s3_client = boto3.client("s3", region_name=os.environ.get('AWS_REGION'))
 date = datetime.datetime.now().strftime("%Y-%m-%d")
 s3_bucket = os.environ.get('S3_BUCKET')
 # Read the first image file
