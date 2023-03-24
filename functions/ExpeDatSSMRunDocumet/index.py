@@ -28,7 +28,7 @@ metrics = Metrics()
 logger = Logger()
 
 # initialize boto3 client and resource
-dynamodb = boto3.resource("dynamodb")
+dynamodb = boto3.resource("dynamodb", region_name=os.environ['AWS_REGION'])
 dynamodb_table = os.environ.get('DYNAMODB_TABLE')
 table = dynamodb.Table(dynamodb_table)
 ssm_client = boto3.client("ssm", region_name=os.environ['AWS_REGION'])
