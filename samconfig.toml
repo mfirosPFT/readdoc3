@@ -1,0 +1,14 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "DCinema"
+s3_bucket = "mum-pr-dcinema-deployments-s3"
+s3_prefix = "DCinemaAWS"
+region = "ap-south-1"
+profile = "admin"
+confirm_changeset = true
+capabilities = "CAPABILITY_NAMED_IAM"
+disable_rollback = false
+parameter_overrides = "ExpedatUser=\"awsuser\" NotificationEmailFrom=\"dcinema@primefocus.com\" ExpedatPass=\"DCinema123\" ExpedatServer=\"expedat.pftcloud.co.uk\" ExpedatPort=\"8080\" DeployStepFunction=\"false\""
+image_repositories = []

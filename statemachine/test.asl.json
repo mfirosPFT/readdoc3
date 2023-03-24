@@ -1,0 +1,178 @@
+{
+  "Comment": "Amazon States Language using DynamoDB and SSM Services",
+  "StartAt": "GetInstanceId",
+  "States": {
+    "GetInstanceId": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${DynamoDBTableTheater}",
+        "Key": {
+          "TheaterId": {
+            "S.$": "$.data.ClientId"
+          }
+        }
+      },
+      "ResultSelector": {
+        "Id.$": "$.Item.InstanceId.S"
+      },
+      "ResultPath": "$.InstanceId",
+      "TimeoutSeconds": 300,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "DynamoDb.ConditionalCheckFailedException",
+            "DynamoDb.ProvisionedThroughputExceededException",
+            "DynamoDb.ResourceNotFoundException"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Fail"
+        }
+      ],
+      "Next": "GetInstanceStatus"
+    },
+    "GetInstanceStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:ssm:describeInstanceInformation",
+      "Parameters": {
+        "Filters": [
+          {
+            "Key": "InstanceIds",
+            "Values.$": "States.Array($.InstanceId.Id)"
+          }
+        ]
+      },
+      "TimeoutSeconds": 300,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "Ssm.InternalServerError",
+            "Ssm.InvalidInstanceId"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Fail"
+        }
+      ],
+      "ResultSelector": {
+        "Info.$": "$.InstanceInformationList[0]"
+      },
+      "ResultPath": "$.InstanceStatus",
+      "Next": "CheckInstanceStatus"
+    },
+    "CheckInstanceStatus": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.InstanceStatus.Info.PingStatus",
+          "StringEquals": "Online",
+          "Next": "CheckPath"
+        }
+      ],
+      "Default": "Fail"
+    },
+    "CheckPath": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.resourcePath.path",
+          "StringEquals": "/run",
+          "Next": "RunCommand"
+        },
+        {
+          "Variable": "$.resourcePath.path",
+          "StringEquals": "/query",
+          "Next": "QueryCommand"
+        }
+      ],
+      "Default": "Fail"
+    },
+    "RunCommand": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:ssm:sendCommand",
+      "Parameters": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "DocumentVersion": "1",
+        "InstanceIds.$": "States.Array($.InstanceId.Id)",
+        "Parameters": {
+          "commands": [
+            "ls"
+          ]
+        }
+      },
+      "TimeoutSeconds": 300,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "Ssm.InvalidCommandId",
+            "Ssm.InvalidDocument",
+            "Ssm.InvalidInstanceId",
+            "Ssm.InvalidOutputFolder"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Fail"
+        }],
+      "ResultPath": "$.CommandId",
+      "Next": "FormatOutputRun"
+    },
+    "QueryCommand": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:ssm:getCommandInvocation",
+      "Parameters": {
+        "CommandId.$": "$.data.JobId",
+        "InstanceId.$": "$.InstanceId.Id"
+      },
+      "TimeoutSeconds": 300,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "Ssm.InvalidCommandId",
+            "Ssm.InvalidInstanceId"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Fail"
+        }],
+      "ResultPath": "$.CommandStatus",
+      "Next": "FormatOutputQuery"
+    },
+    "FormatOutputQuery": {
+      "Type": "Pass",
+      "Parameters": {
+        "ClientId.$": "$.data.ClientId",
+        "JobId.$": "$.data.JobId",
+        "InstanceId.$": "$.InstanceId.Id",
+        "ExecutionStartDateTime.$": "$.CommandStatus.ExecutionStartDateTime",
+        "ExecutionElapsedTime.$": "$.CommandStatus.ExecutionElapsedTime",
+        "ExecutionEndDateTime.$": "$.CommandStatus.ExecutionEndDateTime",
+        "StandardErrorContent.$": "$.CommandStatus.StandardErrorContent",
+        "Status.$": "$.CommandStatus.Status",
+        "ClientStatus.$": "$.InstanceStatus.Info.PingStatus"
+      },
+      "ResultPath": "$.CleanOutput",
+      "Next": "Response"
+    },
+    "FormatOutputRun": {
+      "Type": "Pass",
+      "Parameters": {
+        "ClientId.$": "$.data.ClientId",
+        "JobId.$": "$.CommandId.Command.CommandId",
+        "InstanceId.$": "$.InstanceId.Id",
+        "Status.$": "$.CommandId.Command.Status",
+        "ClientStatus.$": "$.InstanceStatus.Info.PingStatus"
+      },
+      "ResultPath": "$.CleanOutput",
+      "Next": "Response"
+    },
+    "Fail": {
+      "Type": "Fail",
+      "Error": "Failed to get instance status",
+      "Cause": "See error details in $error"
+    },
+    "Response": {
+      "Type": "Pass",
+      "InputPath": "$.CleanOutput",
+      "ResultPath": "$.output",
+      "OutputPath": "$.output",
+      "End": true
+    }
+  }
+}

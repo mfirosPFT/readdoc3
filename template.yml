@@ -1,0 +1,2093 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 128
+    Tracing: Active
+    Tags:
+      Project: !Ref AWS::StackName
+      Environment: Prod
+      Owner: mondanthody.firos@primefocus.com
+      map-migrated: d-server-00c79yzv8q8cvz
+  Api:
+    TracingEnabled: true
+Conditions:
+  DeployStepFunction: !Equals
+    - !Ref DeployStepFunction
+    - 'true'
+Parameters:
+  ExpedatUser:
+    Type: String
+    Description: Expedat User
+    Default: username
+  ExpedatPass:
+    Type: String
+    Description: Expedat Password
+    Default: password
+  ExpedatServer:
+    Type: String
+    Description: Expedat Server
+    Default: server
+  ExpedatPort:
+    Type: String
+    Description: Expedat Port
+    Default: port
+  DeployStepFunction:
+    Type: String
+    Description: Deploy Step Function
+    Default: 'false'
+  NotificationEmailFrom:
+    Type: String
+    Description: Notification Email
+    Default: email
+  ExpedatServerId:
+    Type: String
+    Description: Expedat Server ID
+    Default: mi-08c5025fa198fe218
+  S3Bucket:
+    Type: String
+    Description: S3 Bucket
+    Default: mum-pr-dcinema-deployments-s3
+Resources:
+  ApiGatewaySecretKeyResource:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${AWS::StackName}-ApiGatewaySecretKey-${AWS::Region}
+      Description: Random API Key for API Gateway Endpoint
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      GenerateSecretString:
+        SecretStringTemplate: '{"api_key": "${rand}"}'
+        GenerateStringKey: rand
+        PasswordLength: 40
+        ExcludeCharacters: '"@/\%:{}$!)-_.([]<>?|`~;#^&*+=,'
+        IncludeSpace: false
+        RequireEachIncludedType: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+  CustomAuthorizer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/CustomAuthorizer/
+      Handler: index.lambda_handler
+      Description: Custom Authorizer for API Gateway Endpoints
+      Role: !GetAtt CustomAuthorizerRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+      Environment:
+        Variables:
+          SECRET_ID: !Sub ${AWS::StackName}-ApiGatewaySecretKey-${AWS::Region}
+  CustomAuthorizerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: CustomAuthorizerPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub ${ApiGatewaySecretKeyResource}*
+        - PolicyName: xraysdk
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+  ApiGatewayEndpoint:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      TracingEnabled: true
+      Auth:
+        DefaultAuthorizer: CustomAuthorizer
+        Authorizers:
+          CustomAuthorizer:
+            FunctionPayloadType: REQUEST
+            FunctionArn: !GetAtt CustomAuthorizer.Arn
+            Identity:
+              Headers:
+                - x-api-key
+              ReauthorizeEvery: 0
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          version: '2018-11-29T23:30:18Z'
+          title: !Sub ${AWS::StackName}-ExpeDatSSM-API
+        x-amazon-apigateway-request-validators:
+          validateRequestBody:
+            validateRequestBody: true
+            validateRequestParameters: false
+        x-amazon-apigateway-request-validator: validateRequestBody
+        paths:
+          /run:
+            post:
+              x-amazon-apigateway-request-validator: validateRequestBody
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              parameters:
+                - in: body
+                  name: body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/RunRequestModel'
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ExpeDatSSMRunDocumet.Arn}/invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                type: aws_proxy
+                responses: {}
+              security:
+                - CustomAuthorizer: []
+          /query:
+            post:
+              x-amazon-apigateway-request-validator: validateRequestBody
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              parameters:
+                - in: body
+                  name: body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/QueryRequestModel'
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ExpeDatSSMInvocationQuery.Arn}/invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                type: aws_proxy
+              responses: {}
+              security:
+                - CustomAuthorizer: []
+          /cancel:
+            post:
+              x-amazon-apigateway-request-validator: validateRequestBody
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              parameters:
+                - in: body
+                  name: body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CancelRequestModel'
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ExpeDatCancelRunDocument.Arn}/invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                type: aws_proxy
+              responses: {}
+              security:
+                - CustomAuthorizer: []
+        securityDefinitions:
+          CustomAuthorizer:
+            type: apiKey
+            name: x-api-key
+            in: header
+        definitions:
+          QueryRequestModel:
+            type: object
+            properties:
+              ClientId:
+                type: string
+              JobId:
+                type: string
+            required:
+              - ClientId
+              - JobId
+          RunRequestModel:
+            type: object
+            properties:
+              ClientId:
+                type: string
+              SourcePath:
+                type: string
+              DestinationPath:
+                type: string
+            required:
+              - ClientId
+              - SourcePath
+          CancelRequestModel:
+            type: object
+            properties:
+              ClientId:
+                type: string
+              JobId:
+                type: string
+            required:
+              - ClientId
+              - JobId
+  ExpeDatSSMRunDocumet:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/ExpeDatSSMRunDocumet/
+      Handler: index.lambda_handler
+      Description: This function will run a SSM Document on Client machines to copy files from a source to a destination using Expedat
+      Role: !GetAtt ExpeDatSSMRunDocumetRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoDBTableTheater
+          SSM_DOCUMENT_NAME: !Ref SSMDocument
+          SNS_TOPIC: !Ref SNSNotificationTopic
+          POWERTOOLS_SERVICE_NAME: ExpeDatSSMRunDocumet
+          POWERTOOLS_METRICS_NAMESPACE: ExpeDatSSMRunDocumet
+          LOG_LEVEL: INFO
+          DEFAULT_PATH: /tmp/DCinema/downloads/
+          SSM_SERVICE_ROLE_ARN: !GetAtt SSMSNSPublishRole.Arn
+          HASH_DOCUMENT: !Ref ServerHashGenerator
+          SERVER_ID: !Ref ExpedatServerId
+          S3_BUCKET: mum-pr-dcinema-deployments-s3
+          API_GATEWAY_ENDPOINT: !Sub https://${ApiGatewayS3Verify}.execute-api.${AWS::Region}.amazonaws.com/Prod
+      Events:
+        ApiGatewayEndpoint:
+          Type: Api
+          Properties:
+            Path: /run
+            Method: post
+            RestApiId: !Ref ApiGatewayEndpoint
+            Auth:
+              Authorizer: CustomAuthorizer
+  ExpeDatCancelRunDocument:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/ExpeDatCancelRunDocument/
+      Handler: index.lambda_handler
+      Description: This function will cancel a SSM Document on Client machines
+      Role: !GetAtt ExpeDatCancelRunDocumentRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoDBTableTheater
+          POWERTOOLS_SERVICE_NAME: ExpeDatCancelRunDocument
+          POWERTOOLS_METRICS_NAMESPACE: ExpeDatCancelRunDocument
+          LOG_LEVEL: INFO
+         
+      Events:
+        ApiGatewayEndpoint:
+          Type: Api
+          Properties:
+            Path: /cancel
+            Method: post
+            RestApiId: !Ref ApiGatewayEndpoint
+            Auth:
+              Authorizer: CustomAuthorizer
+  ExpeDatCancelRunDocumentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-ExpeDatCancelRunDocumentRole
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-ExpeDatCancelRunDocumentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:CancelCommand
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-DynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                Resource: !GetAtt DynamoDBTableTheater.Arn
+        - PolicyName: !Sub ${AWS::StackName}-CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-XRayPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+  GeneratedPresignedURL:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/GeneratedPresignedURL/
+      Handler: index.lambda_handler
+      Description: This function will generate a presigned URL for the client to upload the hash file to S3 for validation
+      Role: !GetAtt GeneratedPresignedURLRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoDBTableTheater
+          POWERTOOLS_SERVICE_NAME: GeneratedPresignedURL
+          POWERTOOLS_METRICS_NAMESPACE: GeneratedPresignedURL
+          LOG_LEVEL: INFO
+          S3_BUCKET: mum-pr-dcinema-deployments-s3
+      Events:
+        ApiGatewayS3Verify:
+          Type: Api
+          Properties:
+            Path: /presignedurl
+            Method: post
+            RestApiId: !Ref ApiGatewayS3Verify
+  GeneratedPresignedURLRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: GeneratedPresignedURLPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:PutObjectTagging
+                  - s3:PutObjectVersionAcl
+                  - s3:PutObjectVersionTagging
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3/*
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:GetObjectVersionAcl
+                  - s3:GetObjectVersionTagging
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3/*
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+  ValidateTransfer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/ValidateTransfer/
+      Handler: index.lambda_handler
+      Description: This function will validate the transfer of the files from the source to the destination
+      Role: !GetAtt ValidateTransferRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: ValidateTransfer
+          POWERTOOLS_METRICS_NAMESPACE: ValidateTransfer
+          LOG_LEVEL: INFO
+          S3_BUCKET: mum-pr-dcinema-deployments-s3
+          
+      Events:
+        ApiGatewayS3Verify:
+          Type: Api
+          Properties:
+            Path: /verify
+            Method: post
+            RestApiId: !Ref ApiGatewayS3Verify
+
+
+  ValidateTransferRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: ValidateTransferPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:GetObjectVersionAcl
+                  - s3:GetObjectVersionTagging
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3/*
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+
+  ApiGatewayS3Verify:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          version: '2018-11-29T23:30:18Z'
+          title: !Sub ${AWS::StackName}-PresignedURL-API
+        paths:
+          /presignedurl:
+            post:
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GeneratedPresignedURL.Arn}/invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                type: aws_proxy
+                responses: {}     
+
+          /verify:
+            post:
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ValidateTransfer.Arn}/invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                type: aws_proxy
+                responses: {}
+                
+
+  ExpeDatSSMInvocationQuery:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/ExpeDatSSMInvocationQuery/
+      Handler: index.lambda_handler
+      Description: This function will query the SSM Invocation command output and return the status
+      Role: !GetAtt ExpeDatSSMInvocationQueryRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoDBTableTheater
+          POWERTOOLS_SERVICE_NAME: ExpeDatSSMInvocationQuery
+          POWERTOOLS_METRICS_NAMESPACE: ExpeDatSSMInvocationQuery
+          LOG_LEVEL: INFO
+      Events:
+        ApiGatewayEndpoint:
+          Type: Api
+          Properties:
+            Path: /query
+            Method: post
+            RestApiId: !Ref ApiGatewayEndpoint
+            Auth:
+              Authorizer: CustomAuthorizer
+  SSMAgentActivation:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/SSMAgentActivation/
+      Handler: index.lambda_handler
+      Description: This function will activate the SSM Agent on the client machine
+      Role: !GetAtt SSMAgentActivationRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_THEATER: !Ref DynamoDBTableTheater
+          PROJECT_NAME: !Ref AWS::StackName
+          SSM_ROLE: !Ref SSMAgentRole
+          POWERTOOLS_SERVICE_NAME: SSMAgentActivation
+          POWERTOOLS_METRICS_NAMESPACE: SSMAgentActivation
+          SSM_PARAMETER: !Ref SSMActivationParameter
+          INSTALL_DEPENDENCIES: !Ref InstallDependency
+      Timeout: 150
+      Events:
+        SSMActivation:
+          Type: Api
+          Properties:
+            Path: /ssmactivation
+            Method: post
+            RestApiId: !Ref SSMActivationApi
+        AddTags:
+          Type: Api
+          Properties:
+            Path: /addtags
+            Method: post
+            RestApiId: !Ref SSMActivationApi
+  SSMNotification:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/SSMNotification/
+      Handler: index.lambda_handler
+      Description: This function will send Email notification to the user
+      Role: !GetAtt SSMNotificationRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+        - !Ref CommonLambdaLayer
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: SSMNotification
+          POWERTOOLS_METRICS_NAMESPACE: SSMNotification
+          LOG_LEVEL: INFO
+          EMAIL_FROM: !Ref NotificationEmailFrom
+          Role: !GetAtt SSMSNSPublishRole.Arn
+          SSM_DOCUMENT_NAME: !Ref SSMDocument
+          DYNAMODB_TABLE: !Ref DynamoDBTableTheater
+          STATUS_TABLE: !Ref DynamoDBTableStatus
+          S3_BUCKET: mum-pr-dcinema-deployments-s3
+      Events:
+        SNSNotificationTopic:
+          Type: SNS
+          Properties:
+            Topic: !Ref SNSNotificationTopic
+  SSMNotificationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      RoleName: !Sub ${AWS::StackName}-SSMNotificationRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-CloudWatchLogsRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-SESRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                  - ses:ListIdentities
+                  - ses:VerifyEmailIdentity
+                  - ses:DeleteIdentity
+                  - ses:SendTemplatedEmail
+                  - ses:GetIdentityVerificationAttributes
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-SSMRolesPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetCommandInvocation
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-DynamoDBRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:GetItem
+                Resource:
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableTheater}*/*
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt DynamoDBTableStatus.Arn
+        - PolicyName: !Sub ${AWS::StackName}-XRayRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-S3RolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:GetObjectVersionAcl
+                  - s3:GetObjectVersionTagging
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3/*
+  SSMActivationApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          version: '2018-11-29T18:24:29Z'
+          title: !Sub ${AWS::StackName}-SSMActivation
+        paths:
+          /ssmactivation:
+            post:
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SSMAgentActivation.Arn}/invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                type: aws_proxy
+              responses: {}
+              security:
+                - ApiKeyAuth: []
+          /addtags:
+            post:
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SSMAgentActivation.Arn}/invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                type: aws_proxy
+              responses: {}
+              security:
+                - ApiKeyAuth: []
+  SSMInstallScriptGenerator:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./functions/SSMInstallScriptGenerator/
+      Handler: index.lambda_handler
+      Runtime: python3.8
+      Description: Generates SSM agent Install Script for Linux
+      Role: !GetAtt SSMInstallScriptGeneratorRole.Arn
+      Layers:
+        - !Ref CommonLambdaLayer
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:19
+      Environment:
+        Variables:
+          ONBOARD_TENANT_URL: !Sub https://${SSMActivationApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/ssmactivation
+          SAVE_ACTIVATION_URL: !Sub https://${SSMActivationApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/addtags
+          POWERTOOLS_SERVICE_NAME: SSMInstallScriptGenerator
+          POWERTOOLS_METRICS_NAMESPACE: SSMInstallScriptGenerator
+          LOG_LEVEL: INFO
+      Events:
+        SSMInstallScriptApi:
+          Type: Api
+          Properties:
+            Path: /ssminstallscriptgenerator
+            Method: get
+            RestApiId: !Ref SSMInstallScriptGeneratorApi
+  SSMInstallScriptGeneratorApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          version: '2018-11-29T18:24:29Z'
+          title: !Sub ${AWS::StackName}-SSMInstallScriptGenerator
+        paths:
+          /ssminstallscriptgenerator:
+            get:
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SSMInstallScriptGenerator.Arn}/invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                type: aws_proxy
+              responses: {}
+              security:
+                - ApiKeyAuth: []
+  SSMInstallScriptGeneratorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-SSMInstallScriptGeneratorRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+  CommonLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.8
+      ContentUri: ./lambdaLayer
+      Description: SSM Layer with Jinja2 package
+      LicenseInfo: MIT
+      RetentionPolicy: Retain
+      LayerName: !Sub ${AWS::StackName}-CommonLambdaLayer
+    Metadata:
+      BuildMethod: python3.8
+  ExpeDatSSMRunDocumetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-DynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:BatchGetItem
+                Resource: !GetAtt DynamoDBTableTheater.Arn
+        - PolicyName: !Sub ${AWS::StackName}-SSMRunDocumentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:DescribeInstanceInformation
+                  - ssm:SendCommand
+                  - ssm:ListCommands
+                  - ssm:ListCommandInvocations
+                  - ssm:CancelCommand
+                  - ssm:GetCommandInvocation
+                  - ssm:GetConnectionStatus
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-IAMPassRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt SSMSNSPublishRole.Arn
+        - PolicyName: !Sub ${AWS::StackName}-IAMPassRolePolicy2
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt SSMAgentRole.Arn
+        - PolicyName: !Sub ${AWS::StackName}-XRayPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-S3PolicyGetHead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:GetObjectVersionAcl
+                  - s3:GetObjectVersionTagging
+                Resource: !Sub arn:aws:s3:::mum-pr-dcinema-deployments-s3/*
+  ExpeDatSSMInvocationQueryRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-DynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:BatchGetItem
+                Resource: !GetAtt DynamoDBTableTheater.Arn
+        - PolicyName: !Sub ${AWS::StackName}-SSMRunDocumentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:DescribeInstanceInformation
+                  - ec2:DescribeInstances
+                  - ssm:SendCommand
+                  - ssm:ListCommands
+                  - ssm:ListCommandInvocations
+                  - ssm:CancelCommand
+                  - ssm:GetCommandInvocation
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-SNSPublishPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref SNSNotificationTopic
+        - PolicyName: !Sub ${AWS::StackName}-XRayPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+  SSMAgentActivationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-DynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt DynamoDBTableTheater.Arn
+        - PolicyName: !Sub ${AWS::StackName}-CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-IAMPassRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt SSMAgentRole.Arn
+        - PolicyName: !Sub ${AWS::StackName}-SSMRunDocumentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:CreateActivation
+                  - ssm:AddTagsToResource
+                  - ssm:PutParameter
+                  - ssm:GetParameter
+                Resource: '*'
+  SSMAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ssm.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-SSMRunDocumentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:DescribeInstanceInformation
+                  - ssm:DescribeAssociation
+                  - ssm:GetDeployablePatchSnapshotForInstance
+                  - ssm:GetDocument
+                  - ssm:DescribeDocument
+                  - ssm:GetManifest
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:PutParameter
+                  - ssm:ListAssociations
+                  - ssm:ListInstanceAssociations
+                  - ssm:PutInventory
+                  - ssm:PutComplianceItems
+                  - ssm:PutConfigurePackageResult
+                  - ssm:UpdateAssociationStatus
+                  - ssm:UpdateInstanceAssociationStatus
+                  - ssm:UpdateInstanceInformation
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ec2messages:AcknowledgeMessage
+                  - ec2messages:DeleteMessage
+                  - ec2messages:FailMessage
+                  - ec2messages:GetEndpoint
+                  - ec2messages:GetMessages
+                  - ec2messages:SendReply
+                Resource: '*'
+        - PolicyName: !Sub ${AWS::StackName}-CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource: arn:aws:logs:*:*:*
+                # CloudWatchAgentServerPolicy
+        - PolicyName: !Sub ${AWS::StackName}-CloudWatchAgentServerPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - ec2:DescribeTags
+                  - ec2:DescribeInstances
+                  - ec2:DescribeVolumes
+                Resource: '*'
+  SNSNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${AWS::StackName}-ExpeDatSSMRunDocument-NOTIFICATION
+      DisplayName: !Sub ${AWS::StackName}-ExpeDatSSMRunDocument
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      Subscription:
+        - Endpoint: mondanthody.firos@primefocus.com
+          Protocol: email
+  SSMSNSPublishRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ssm.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-SSMSNSPublishPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref SNSNotificationTopic
+  SSMDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      Content:
+        schemaVersion: '2.2'
+        description: Command Document ExpeDat Copy
+        parameters:
+          ClientId:
+            type: String
+            description: Client ID
+            default: PVR-0001
+          SourcePath:
+            type: String
+            description: location of the source
+            default: /tmp/caffeine
+          DestinationPath:
+            type: String
+            description: location of the destination Linux
+            default: /tmp/DCinema/downloads
+          ExpeDatUser:
+            type: String
+            description: ExpeDat username
+            default: !Sub '{{ssm:${ExpeDatUserParameterName}}}'
+          ExpeDatPass:
+            type: String
+            description: ExpeDat password
+            default: !Sub '{{ssm:${ExpeDatPassParameterName}}}'
+          ExpeDatServer:
+            type: String
+            description: ExpeDat server IP
+            default: !Sub '{{ssm:${ExpeDatServerParameterName}}}'
+          ExpeDatPort:
+            type: String
+            description: ExpeDat server port
+            default: !Sub '{{ssm:${ExpeDatPortParameterName}}}'
+        mainSteps:
+          - action: aws:runShellScript
+            name: ExpeDat
+            inputs:
+              timeoutSeconds: 172800
+              runCommand:
+                - ' #!/bin/sh'
+                - ' set -e'
+                - ' mkdir -p {{DestinationPath}} >/dev/null 2>&1'
+                - ' log_file="/tmp/movedat.log"'
+                - ' touch "$log_file"'
+                - ' movedat -h -s -y {{ExpeDatUser}}:{{ExpeDatPass}}@{{ExpeDatServer}}:{{SourcePath}} {{DestinationPath}} >> "$log_file" 2>&1'
+                - ' tail -n 4 "$log_file"'
+      DocumentType: Command
+      DocumentFormat: YAML
+  InstallDependency:
+    Type: AWS::SSM::Document
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      Content:
+        schemaVersion: '2.2'
+        description: Check and install required packages for theater box
+        parameters:
+          pythonVersion:
+            type: String
+            description: "Python version to use (default is 3.8.10)"
+            default: 3.8.10
+
+        mainSteps:
+          - name: CheckPython
+            action: aws:runShellScript
+            inputs:
+              runCommand:
+              - "#!/bin/sh"
+              - "set -e"
+              - 'python3 --version | grep {{pythonVersion}}'
+              - 'if [ $? -eq 0 ]; then echo "Python {{pythonVersion}} is already installed"; else apt-get update; apt-get install -y python3 python3-pip; fi'
+          - name: CheckBoto3
+            action: aws:runShellScript
+            inputs:
+              runCommand:
+              - "#!/bin/sh"
+              - "set -e"
+              - 'pip3 list | grep boto3'
+              - 'if [ $? -eq 0 ]; then echo "Boto3 is already installed"; else pip3 install boto3; fi'
+      DocumentType: Command
+      DocumentFormat: YAML  
+  ServerHashGenerator:
+    Type: AWS::SSM::Document
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      Content:
+        schemaVersion: '2.2'
+        description: Generate server hash
+        parameters:
+          SourcePath:
+            type: String
+            description: Source path
+            default: /tmp/DCinema/downloads
+          ServerID:
+            type: String
+            description: Server IP
+            default: mi-08c5025fa198fe218
+          GenerateHash:
+            type: String
+            description: Code
+            default: "1234"
+          APIURL:
+            type: String
+            description: API URL
+            default: "https://api.expedat.com/api/v1/ServerHash"
+          Date:
+            type: String
+            description: Date
+            default: "2021-09-01"
+        mainSteps:
+          - name: GenerateServerHash
+            action: aws:runShellScript
+            inputs:
+              runCommand:
+              - "#!/bin/sh"
+              - "set -e"
+              - 'date="$(date +%Y%m%d-%H%M%S)"'
+              - 'export GenerateHash="{{GenerateHash}}"'
+              - "if python3 -c \"$(echo $GenerateHash | base64 -d)\" {{SourcePath}} {{SourcePath}} Server {{APIURL}} {{Date}}; then"
+              - '  echo "Server hash generated successfully"'
+              - 'else'
+              - '  echo "Server hash generation failed"'
+              - '  exit 1'
+              - 'fi'
+
+
+              
+      DocumentType: Command
+      DocumentFormat: YAML
+
+
+  ExpeDatUserParameterName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+        Usage: Username
+        map-migrated: d-server-00c79yzv8q8cvz
+      Name: !Sub /${AWS::StackName}/expedat/username
+      Type: String
+      Value: !Ref ExpedatUser
+      Description: Expedat User
+      Tier: Standard
+  ExpeDatPassParameterName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+        Usage: Password
+        map-migrated: d-server-00c79yzv8q8cvz
+      Name: !Sub /${AWS::StackName}/expedat/password
+      Type: String
+      Value: !Ref ExpedatPass
+      Description: Expedat Password
+      Tier: Standard
+  ExpeDatServerParameterName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+        Usage: Server
+        map-migrated: d-server-00c79yzv8q8cvz
+      Name: !Sub /${AWS::StackName}/expedat/server
+      Type: String
+      Value: !Ref ExpedatServer
+      Description: Expedat Server
+      Tier: Standard
+  ExpeDatPortParameterName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+        Usage: Port
+        map-migrated: d-server-00c79yzv8q8cvz
+      Name: !Sub /${AWS::StackName}/expedat/port
+      Type: String
+      Value: !Ref ExpedatPort
+      Description: Expedat Port
+      Tier: Standard
+  SSMActivationParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+        Usage: Port
+        map-migrated: d-server-00c79yzv8q8cvz
+      Name: !Sub /${AWS::StackName}/ssm/activation
+      Type: String
+      Value: '{ "Expiration": "2021-12-31", "RegistrationLimit": 200, "ActiveCount": 200, "ActivationId": "placeholder", "ActivationCode": "placeholder"  }'
+      Description: SSM Activation Details
+      Tier: Standard
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+  LogParserParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+        Usage: LogParser
+        map-migrated: d-server-00c79yzv8q8cvz
+      Name: !Sub /${AWS::StackName}/logparser
+      Type: String
+      Tier: Advanced
+      Value: 'aW1wb3J0IGhhc2hsaWINCmltcG9ydCBvcw0KaW1wb3J0IGNzdg0KaW1wb3J0IHJlDQppbXBvcnQgc3lzDQppbXBvcnQgYXJncGFyc2UNCmZyb20gZGF0ZXRpbWUgaW1wb3J0IGRhdGV0aW1lDQoNCg0KZGVmIHBhcnNlX3RpbWUodGltZV9zdHIpOg0KICAgIHRpbWUgPSByZS5zZWFyY2gocicoXGQrKFwuXGQrKT8pXHMrKG1zfHNlY3xtaW58aHJzKScsIHRpbWVfc3RyKQ0KICAgIGlmIHRpbWU6DQogICAgICAgIHRpbWUgPSB0aW1lLmdyb3VwKDApDQogICAgICAgIGlmIHRpbWUuZW5kc3dpdGgoJ21zJyk6DQogICAgICAgICAgICB0aW1lX21zID0gdGltZS5zcGxpdCgpWzBdDQogICAgICAgIGVsaWYgdGltZS5lbmRzd2l0aCgnc2VjJyk6DQogICAgICAgICAgICB0aW1lX21zID0gZmxvYXQodGltZS5zcGxpdCgpWzBdKSAqIDEwMDANCiAgICAgICAgZWxpZiB0aW1lLmVuZHN3aXRoKCdocnMnKToNCiAgICAgICAgICAgIHRpbWVfbXMgPSBmbG9hdCh0aW1lLnNwbGl0KClbMF0pICogMTAwMCAqIDYwICogNjANCiAgICAgICAgZWxpZiB0aW1lLmVuZHN3aXRoKCdtaW4nKToNCiAgICAgICAgICAgIHRpbWVfbXMgPSBmbG9hdCh0aW1lLnNwbGl0KClbMF0pICogMTAwMCAqIDYwDQogICAgICAgIGVsc2U6DQogICAgICAgICAgICByYWlzZSBFeGNlcHRpb24oJ1Vua25vd24gdGltZSB1bml0JykNCiAgICAgICAgcmV0dXJuIGZsb2F0KHRpbWVfbXMpIC8gMTAwMC4wDQogICAgZWxzZToNCiAgICAgICAgcmFpc2UgRXhjZXB0aW9uKCdDb3VsZCBub3QgcGFyc2UgdGltZScpDQoNCg0KZGVmIHBhcnNlX3NwZWVkKHNwZWVkX3N0cik6DQogICAgbWF0Y2ggPSByZS5zZWFyY2gocicoXGQrXC5cZCspXHMrbWJpdC9zJywgc3BlZWRfc3RyKQ0KICAgIGlmIG1hdGNoOg0KICAgICAgICByZXR1cm4gZmxvYXQobWF0Y2guZ3JvdXAoMSkpDQogICAgZWxzZToNCiAgICAgICAgcmFpc2UgRXhjZXB0aW9uKCdDb3VsZCBub3QgcGFyc2Ugc3BlZWQnKQ0KDQoNCmRlZiBnZXRfZm9sZGVyX3NpemUoZm9sZGVyX3BhdGgpOg0KICAgIHRvdGFsX3NpemUgPSAwDQogICAgZm9yIGRpcnBhdGgsIGRpcm5hbWVzLCBmaWxlbmFtZXMgaW4gb3Mud2Fsayhmb2xkZXJfcGF0aCk6DQogICAgICAgIGZvciBmIGluIGZpbGVuYW1lczoNCiAgICAgICAgICAgIGZwID0gb3MucGF0aC5qb2luKGRpcnBhdGgsIGYpDQogICAgICAgICAgICB0b3RhbF9zaXplICs9IG9zLnBhdGguZ2V0c2l6ZShmcCkNCiAgICByZXR1cm4gdG90YWxfc2l6ZQ0KDQoNCmRlZiBjb252ZXJ0X3NpemUoc2l6ZSk6DQogICAgaWYgc2l6ZSA+IDEwMjQgKiAxMDI0ICogMTAyNDoNCiAgICAgICAgcmV0dXJuIHNpemUgLyAoMTAyNCAqIDEwMjQgKiAxMDI0KSwgJ0dCJw0KICAgIGVsaWYgc2l6ZSA+IDEwMjQgKiAxMDI0Og0KICAgICAgICByZXR1cm4gc2l6ZSAvICgxMDI0ICogMTAyNCksICdNQicNCiAgICBlbGlmIHNpemUgPiAxMDI0Og0KICAgICAgICByZXR1cm4gc2l6ZSAvIDEwMjQsICdLQicNCiAgICBlbHNlOg0KICAgICAgICByZXR1cm4gc2l6ZSwgJ2J5dGVzJw0KDQoNCnBhcnNlciA9IGFyZ3BhcnNlLkFyZ3VtZW50UGFyc2VyKCkNCnBhcnNlci5hZGRfYXJndW1lbnQoImxvZ2ZpbGUiLCBoZWxwPSJwYXRoIHRvIGxvZyBmaWxlIikNCmFyZ3MgPSBwYXJzZXIucGFyc2VfYXJncygpDQoNCnRyeToNCiAgICBsb2dfZmlsZSA9IGFyZ3MubG9nZmlsZQ0KICAgIG51bV9maWxlcyA9IDANCiAgICB0b3RhbF9zaXplID0gMA0KICAgIHRvdGFsX3RpbWUgPSAwDQogICAgdG90YWxfc3BlZWQgPSAwDQogICAgaGlnaF9zcGVlZCA9IDANCiAgICBlcnJtc2cgPSAnJw0KICAgIGVycmNvdW50ID0gMA0KICAgIGZvbGRlcl9wYXRoID0gJycNCiAgICBmb3VuZF9maXJzdF9JID0gRmFsc2UNCg0KICAgIHdpdGggb3Blbihsb2dfZmlsZSwgJ3InKSBhcyBmOg0KICAgICAgICBlcnJtc2cgKz0gJ1xuJw0KICAgICAgICBmb3IgbGluZSBpbiBmOg0KICAgICAgICAgICAgdHJ5Og0KICAgICAgICAgICAgICAgIGlmIGxpbmUuc3RhcnRzd2l0aCgnSScpIGFuZCBub3QgZm91bmRfZmlyc3RfSToNCiAgICAgICAgICAgICAgICAgICAgZm9sZGVyX3BhdGggPSBvcy5wYXRoLmRpcm5hbWUobGluZS5zcGxpdCgpWzVdKQ0KICAgICAgICAgICAgICAgICAgICBzb3VyY2VfcGF0aCA9IG9zLnBhdGguZGlybmFtZShsaW5lLnNwbGl0KClbOF0pDQogICAgICAgICAgICAgICAgICAgIGZvdW5kX2ZpcnN0X0kgPSBUcnVlDQogICAgICAgICAgICAgICAgZWxpZiBsaW5lLnN0YXJ0c3dpdGgoJ0YnKToNCiAgICAgICAgICAgICAgICAgICAgZmllbGRzID0gbGluZS5zcGxpdCgnXHQnKQ0KICAgICAgICAgICAgICAgICAgICBpZiBsZW4oZmllbGRzKSA8IDExOg0KICAgICAgICAgICAgICAgICAgICAgICAgcmFpc2UgRXhjZXB0aW9uKCdJbnZhbGlkIGxpbmUgZm9ybWF0JykNCiAgICAgICAgICAgICAgICAgICAgc2l6ZV90aW1lX3NwZWVkID0gZmllbGRzWzEwXQ0KICAgICAgICAgICAgICAgICAgICBmaWxlX3NpemVfc3RyLCByZXN0ID0gc2l6ZV90aW1lX3NwZWVkLnNwbGl0KCcgaW4gJykNCiAgICAgICAgICAgICAgICAgICAgdGltZV9zZWMgPSBwYXJzZV90aW1lKHJlc3QpDQogICAgICAgICAgICAgICAgICAgIHNwZWVkX21icHMgPSBwYXJzZV9zcGVlZChzaXplX3RpbWVfc3BlZWQpDQogICAgICAgICAgICAgICAgICAgIHRvdGFsX3NwZWVkICs9IHNwZWVkX21icHMNCiAgICAgICAgICAgICAgICAgICAgdG90YWxfdGltZSArPSB0aW1lX3NlYw0KICAgICAgICAgICAgICAgICAgICBpZiBzcGVlZF9tYnBzID4gaGlnaF9zcGVlZDoNCiAgICAgICAgICAgICAgICAgICAgICAgIGhpZ2hfc3BlZWQgPSBzcGVlZF9tYnBzDQogICAgICAgICAgICAgICAgZWxpZiBsaW5lLnN0YXJ0c3dpdGgoJ1cnKToNCiAgICAgICAgICAgICAgICAgICAgZXJyY291bnQgKz0gMQ0KICAgICAgICAgICAgICAgICAgICB0aW1lc3RhbXAgPSBsaW5lLnNwbGl0KClbMV0gKyAnICcgKyBsaW5lLnNwbGl0KClbMl0NCiAgICAgICAgICAgICAgICAgICAgaWYgZXJybXNnOg0KICAgICAgICAgICAgICAgICAgICAgICAgZXJybXNnICs9ICdcbicNCiAgICAgICAgICAgICAgICAgICAgZXJybXNnICs9IGYie3RpbWVzdGFtcH06IHsnICcuam9pbihsaW5lLnNwbGl0KClbMzpdKX0iDQoNCiAgICAgICAgICAgICAgICBlbHNlOg0KICAgICAgICAgICAgICAgICAgICBjb250aW51ZQ0KICAgICAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOg0KICAgICAgICAgICAgICAgIGVycmNvdW50ICs9IDENCiAgICAgICAgICAgICAgICB0aW1lc3RhbXAgPSBsaW5lLnNwbGl0KClbMV0gKyAnICcgKyBsaW5lLnNwbGl0KClbMl0NCiAgICAgICAgICAgICAgICBpZiBlcnJtc2c6DQogICAgICAgICAgICAgICAgICAgIGVycm1zZyArPSAnXG4nDQogICAgICAgICAgICAgICAgZXJybXNnICs9IGYie3RpbWVzdGFtcH06IHsnICcuam9pbihsaW5lLnNwbGl0KClbMzpdKX0iDQogICAgIyB1c2UgZm9sZGVyX3BhdGggdG8gZ2V0IHRvdGFsIG51bWJlciBvZiBmaWxlcw0KICAgIG51bV9maWxlcyA9IGxlbihvcy5saXN0ZGlyKGZvbGRlcl9wYXRoKSkNCiAgICB0b3RhbF9zaXplID0gZ2V0X2ZvbGRlcl9zaXplKGZvbGRlcl9wYXRoKQ0KICAgIGF2Z19zcGVlZCA9IHRvdGFsX3NwZWVkIC8gbnVtX2ZpbGVzIGlmIG51bV9maWxlcyA+IDAgZWxzZSAwDQogICAgdG90YWxfc2l6ZSwgc2l6ZV91bml0ID0gY29udmVydF9zaXplKHRvdGFsX3NpemUpDQoNCiAgICBwcmludChmIlRvdGFsIG51bWJlciBvZiBmaWxlczoge251bV9maWxlc30iKQ0KICAgIHByaW50KGYiVG90YWwgc2l6ZSBvZiBmaWxlcyAoaW4ge3NpemVfdW5pdH0pOiB7dG90YWxfc2l6ZX0iKQ0KICAgIHByaW50KGYiVG90YWwgdGltZSB0YWtlbiAoaW4gc2Vjb25kcyk6IHt0b3RhbF90aW1lfSIpDQogICAgcHJpbnQoZiJCZXN0IHNwZWVkIChpbiBNYnBzKToge2hpZ2hfc3BlZWR9IikNCiAgICBwcmludChmIkF2ZXJhZ2Ugc3BlZWQgKGluIE1icHMpOiB7YXZnX3NwZWVkfSIpDQogICAgcHJpbnQoZiJEZXN0aW5hdGlvbiBQYXRoOiB7Zm9sZGVyX3BhdGh9IikNCiAgICBwcmludChmIlNvdXJjZSBQYXRoOiB7c291cmNlX3BhdGh9IikNCiAgICBwcmludCgpDQogICAgcHJpbnQoZidFcnJvciBjb3VudDoge2VycmNvdW50fScgaWYgZXJyY291bnQgPiAwIGVsc2UgJycpDQogICAgcHJpbnQoZiJFcnJvciBMb2dzOiB7ZXJybXNnfSIgaWYgZXJyY291bnQgPiAwIGVsc2UgJycpDQpleGNlcHQgRXhjZXB0aW9uIGFzIGU6DQogICAgcHJpbnQoIkFuIGVycm9yIG9jY3VycmVkOiB7fSIuZm9ybWF0KHN0cihlKSkpDQogICAgc3lzLmV4aXQoMSkNCg=='
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+  HashGeneratorParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Tags:
+        Project: !Ref AWS::StackName
+        Environment: Prod
+        Owner: mondanthody.firos@primefocus.com
+        Usage: HashGenerator
+        map-migrated: d-server-00c79yzv8q8cvz
+      Name: !Sub /${AWS::StackName}/hash-generator
+      Type: String
+      Tier: Advanced
+      Value: 'aW1wb3J0IGhhc2hsaWINCmltcG9ydCBvcw0KaW1wb3J0IGNzdg0KaW1wb3J0IHJlcXVlc3RzDQppbXBvcnQgc3lzDQpmcm9tIHVybGxpYi5wYXJzZSBpbXBvcnQgdXJscGFyc2UNCg0KIyBHZXQgY29tbWFuZC1saW5lIGFyZ3VtZW50cw0KZGlyZWN0b3J5X3BhdGggPSBzeXMuYXJndlsxXQ0KZGVzdGluYXRpb25fcGF0aCA9IHN5cy5hcmd2WzJdDQpjbGllbnRfaWQgPSBzeXMuYXJndlszXQ0KYXBpX2dhdGV3YXlfdXJsID0gc3lzLmFyZ3ZbNF0NCg0KZm9sZGVyX25hbWUgPSBvcy5wYXRoLmJhc2VuYW1lKGRpcmVjdG9yeV9wYXRoLnJzdHJpcCgnLycpKQ0KDQp0cnk6DQogICAgIyBDcmVhdGUgdGhlIG91dHB1dCBmaWxlDQogICAgd2l0aCBvcGVuKGRlc3RpbmF0aW9uX3BhdGgsIG1vZGU9J3cnLCBuZXdsaW5lPScnKSBhcyBjc3ZfZmlsZToNCiAgICAgICAgd3JpdGVyID0gY3N2LndyaXRlcihjc3ZfZmlsZSkNCiAgICAgICAgd3JpdGVyLndyaXRlcm93KFsnZmlsZW5hbWUnLCAnaGFzaCddKQ0KDQogICAgICAgICMgTG9vcCB0aHJvdWdoIGFsbCB0aGUgZmlsZXMgaW4gdGhlIGRpcmVjdG9yeSBhbmQgaXRzIHN1YmRpcmVjdG9yaWVzDQogICAgICAgIGZvciByb290LCBkaXJzLCBmaWxlcyBpbiBvcy53YWxrKGRpcmVjdG9yeV9wYXRoKToNCiAgICAgICAgICAgIGZvciBmaWxlbmFtZSBpbiBmaWxlczoNCiAgICAgICAgICAgICAgICAjIE9wZW4gdGhlIGZpbGUgYW5kIGdlbmVyYXRlIGl0cyBoYXNoDQogICAgICAgICAgICAgICAgd2l0aCBvcGVuKG9zLnBhdGguam9pbihyb290LCBmaWxlbmFtZSksICdyYicpIGFzIGZpbGU6DQogICAgICAgICAgICAgICAgICAgIGZpbGVfaGFzaCA9IGhhc2hsaWIuc2hhMjU2KCkNCiAgICAgICAgICAgICAgICAgICAgd2hpbGUgY2h1bmsgOj0gZmlsZS5yZWFkKDgxOTIpOg0KICAgICAgICAgICAgICAgICAgICAgICAgZmlsZV9oYXNoLnVwZGF0ZShjaHVuaykNCg0KICAgICAgICAgICAgICAgICMgV3JpdGUgdGhlIGZpbGVuYW1lIGFuZCBoYXNoIHRvIHRoZSBvdXRwdXQgZmlsZQ0KICAgICAgICAgICAgICAgIHdyaXRlci53cml0ZXJvdygNCiAgICAgICAgICAgICAgICAgICAgW29zLnBhdGguam9pbihyb290LCBmaWxlbmFtZSksIGZpbGVfaGFzaC5oZXhkaWdlc3QoKV0pDQoNCiAgICAjIFVwbG9hZCB0aGUgQ1NWIGZpbGUgdG8gUzMgdXNpbmcgYSBwcmVzaWduZWQgVVJMIGdlbmVyYXRlZCBmcm9tIHRoZSBMYW1iZGEgZnVuY3Rpb24NCiAgICB3aXRoIG9wZW4oZGVzdGluYXRpb25fcGF0aCwgJ3JiJykgYXMgZmlsZToNCiAgICAgICAgcmVzcG9uc2UgPSByZXF1ZXN0cy5wb3N0KA0KICAgICAgICAgICAgYXBpX2dhdGV3YXlfdXJsICsgJy9wcmVzaWduZWR1cmwnLCBqc29uPXsnY2xpZW50X2lkJzogY2xpZW50X2lkLCAnZm9sZGVyX25hbWUnOiBmb2xkZXJfbmFtZX0pDQogICAgICAgIHJlc3BvbnNlLnJhaXNlX2Zvcl9zdGF0dXMoKQ0KICAgICAgICBwcmVzaWduZWRfdXJsID0gcmVzcG9uc2UuanNvbigpWydwcmVzaWduZWRfdXJsJ10NCg0KICAgICAgICByZXNwb25zZSA9IHJlcXVlc3RzLnB1dChwcmVzaWduZWRfdXJsLCBkYXRhPWZpbGUucmVhZCgpLA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBoZWFkZXJzPXsnQ29udGVudC1UeXBlJzogJ3RleHQvY3N2J30pDQogICAgICAgIHJlc3BvbnNlLnJhaXNlX2Zvcl9zdGF0dXMoKQ0KDQogICAgIyBleHRyYWN0IHRoZSBwcmVmaXggZnJvbSB0aGUgcHJlc2lnbmVkIHVybA0KICAgIHBhcnNlZF91cmwgPSB1cmxwYXJzZShwcmVzaWduZWRfdXJsKQ0KICAgIGZpbGVfcGF0aCA9IHBhcnNlZF91cmwucGF0aFsxOl0gICMgcmVtb3ZpbmcgdGhlIGxlYWRpbmcgJy8nDQogICAgcHJpbnQoZmlsZV9wYXRoKQ0KICAgICMgdmVyaWZ5IHRoZSBoYXNoIGJ5IGNhbGxpbmcgdGhlIGxhbWJkYSBmdW5jdGlvbg0KICAgIHJlcyA9IHJlcXVlc3RzLnBvc3QoYXBpX2dhdGV3YXlfdXJsICsgJy92ZXJpZnknLCBqc29uPXsNCiAgICAgICAgICAgICAgICAgICAgICAgICdjbGllbnRfaWQnOiBjbGllbnRfaWQsICdmb2xkZXJfbmFtZSc6IGZvbGRlcl9uYW1lLCAnY2xpZW50X2tleSc6IGZpbGVfcGF0aH0pDQogICAgcmVzLnJhaXNlX2Zvcl9zdGF0dXMoKQ0KICAgIHByaW50KHJlcy5qc29uKCkpDQoNCg0KZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOg0KICAgIHByaW50KGYiRXJyb3I6IHtlfSIpDQogICAgc3lzLmV4aXQoMSkNCmZpbmFsbHk6DQogICAgIyBEZWxldGUgdGhlIG91dHB1dCBmaWxlDQogICAgdHJ5Og0KICAgICAgICBvcy5yZW1vdmUoZGVzdGluYXRpb25fcGF0aCkNCiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6DQogICAgICAgIHByaW50KGYiRXJyb3I6IEZhaWxlZCB0byBkZWxldGUge2Rlc3RpbmF0aW9uX3BhdGh9OiB7ZX0iKQ0K'
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain    
+  DynamoDBTableTheater:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AttributeDefinitions:
+        - AttributeName: TheaterId
+          AttributeType: S
+        - AttributeName: InstanceId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: TheaterId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TableName: !Sub ${AWS::StackName}-TheaterTable
+      GlobalSecondaryIndexes:
+        - IndexName: InstanceIdIndex
+          KeySchema:
+            - AttributeName: InstanceId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+  DynamoDBTableStatus:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      KeySchema:
+        - AttributeName: TheaterId
+          KeyType: HASH
+        - AttributeName: CreatedOn
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: TheaterId
+          AttributeType: S
+        - AttributeName: CreatedOn
+          AttributeType: N
+      BillingMode: PAY_PER_REQUEST
+
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+  DashboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      CodeUri: ./functions/DashboardFunction
+      Handler: index.lambda_handler
+      Role: !GetAtt DashboardFunctionRole.Arn
+      Description: Dashboard Function to get the data from SSM, cost and usage to display it in Cloudwatch Dashboard
+      Environment:
+        Variables:
+          SSM_DOCUMENT_NAME: !Ref SSMDocument
+          PROJECT_NAME: !Ref AWS::StackName
+  DashboardFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: ssm
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:ListCommands
+                Resource: '*'
+        - PolicyName: Cost
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ce:GetCostAndUsage
+                Resource: '*'
+        - PolicyName: cloudwatch
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+  CloudwatchDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub ${AWS::StackName}-Dashboard
+      DashboardBody: !Sub |
+        {
+            "widgets": [
+                {
+                  "height": 16,
+                  "width": 20,
+                  "y": 6,
+                  "x": 4,
+                  "type": "explorer",
+                  "properties": {
+                      "metrics": [
+                          {
+                              "metricName": "Count",
+                              "resourceType": "AWS::ApiGateway::RestApi",
+                              "stat": "Sum"
+                          },
+                          {
+                              "metricName": "5XXError",
+                              "resourceType": "AWS::ApiGateway::RestApi",
+                              "stat": "Sum"
+                          },
+                          {
+                              "metricName": "4XXError",
+                              "resourceType": "AWS::ApiGateway::RestApi",
+                              "stat": "Sum"
+                          },
+                          {
+                              "metricName": "Latency",
+                              "resourceType": "AWS::ApiGateway::RestApi",
+                              "stat": "Average"
+                          }
+                      ],
+                      "labels": [
+                          {
+                              "key": "aws:cloudformation:stack-name",
+                              "value": "${AWS::StackName}"
+                          }
+                      ],
+                      "widgetOptions": {
+                          "legend": {
+                              "position": "bottom"
+                          },
+                          "view": "timeSeries",
+                          "stacked": false,
+                          "rowsPerPage": 50,
+                          "widgetsPerRow": 2
+                      },
+                      "period": 300,
+                      "splitBy": "",
+                      "region": "${AWS::Region}",
+                      "title": "DCinema API Resources"
+                  }
+              },
+              {
+                  "height": 6,
+                  "width": 10,
+                  "y": 0,
+                  "x": 4,
+                  "type": "log",
+                  "properties": {
+                      "query": "SOURCE '/aws/lambda/${ExpeDatSSMRunDocumet}' | SOURCE '/aws/lambda/${ExpeDatSSMInvocationQuery}' | fields @timestamp, message, @logStream\n| sort @timestamp desc\n| filter message like /(?i)(Exception|error|fail|5dd)/\n| limit 20",
+                      "region": "${AWS::Region}",
+                      "title": "Error Logs",
+                      "stacked": false,
+                      "view": "table"
+                  }
+              },
+              {
+                  "height": 6,
+                  "width": 10,
+                  "y": 0,
+                  "x": 14,
+                  "type": "log",
+                  "properties": {
+                      "query": "SOURCE '/aws/lambda/${ExpeDatSSMRunDocumet}' | SOURCE '/aws/lambda/${ExpeDatSSMInvocationQuery}' | filter @type = \"REPORT\"\n| stats max(@memorySize / 1024 / 1024) as ProvisonedMemoryMB,\n\n  min(@maxMemoryUsed / 1024 / 1024) as smallestMemoryRequestMB,\n\n  avg(@maxMemoryUsed / 1024 / 1024) as avgMemoryUsedMB,\n\n  max(@maxMemoryUsed / 1024 / 1024) as maxMemoryUsedMB,\n\n  provisonedMemoryMB - maxMemoryUsedMB as overProvisionedMB",
+                      "region": "${AWS::Region}",
+                      "title": "Lambda Memory Utilization",
+                      "stacked": false,
+                      "view": "table"
+                  }
+              },
+              {
+                  "height": 11,
+                  "width": 4,
+                  "y": 0,
+                  "x": 0,
+                  "type": "custom",
+                  "properties": {
+                      "endpoint": "${DashboardFunction.Arn}",
+                      "updateOn": {
+                          "refresh": false,
+                          "resize": true,
+                          "timeRange": true
+                      },
+                      "params": {
+                          "name": "getInvocationStatus"
+                      },
+                      "title": "Theater Delivery Status"
+                  }
+              },
+              {
+                  "height": 11,
+                  "width": 4,
+                  "y": 11,
+                  "x": 0,
+                  "type": "custom",
+                  "properties": {
+                      "endpoint": "${DashboardFunction.Arn}",
+                      "updateOn": {
+                          "refresh": false,
+                          "resize": true,
+                          "timeRange": true
+                      },
+                      "params": {
+                          "name": "getCostandUsage"
+                      },
+                      "title": "Cost and Usage"
+                  }
+              },
+              {
+                  "height": 16,
+                  "width": 24,
+                  "y": 22,
+                  "x": 0,
+                  "type": "explorer",
+                  "properties": {
+                      "metrics": [
+                          {
+                              "metricName": "Invocations",
+                              "resourceType": "AWS::Lambda::Function",
+                              "stat": "Sum"
+                          },
+                          {
+                              "metricName": "Duration",
+                              "resourceType": "AWS::Lambda::Function",
+                              "stat": "Average"
+                          },
+                          {
+                              "metricName": "Errors",
+                              "resourceType": "AWS::Lambda::Function",
+                              "stat": "Sum"
+                          },
+                          {
+                              "metricName": "Throttles",
+                              "resourceType": "AWS::Lambda::Function",
+                              "stat": "Sum"
+                          }
+                      ],
+                      "labels": [
+                          {
+                              "key": "Project",
+                              "value": "${AWS::StackName}"
+                          }
+                      ],
+                      "widgetOptions": {
+                          "legend": {
+                              "position": "bottom"
+                          },
+                          "view": "timeSeries",
+                          "stacked": false,
+                          "rowsPerPage": 50,
+                          "widgetsPerRow": 2
+                      },
+                      "period": 300,
+                      "splitBy": "",
+                      "region": "${AWS::Region}",
+                      "title": "DCinema Lambda Resources"
+                  }
+              }
+            ]
+          }
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+          - Key: Project
+            Value: !Ref AWS::StackName
+          - Key: Environment
+            Value: Prod
+          - Key: Owner
+            Value: mondanthody.firos@primefocus.com
+          - Key: map-migrated
+            Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - states.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+      
+        - PolicyName: !Sub ${AWS::StackName}-StateMachineRole
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource: !GetAtt DynamoDBTableTheater.Arn
+              - Effect: Allow
+                Action:
+                  - ssm:DescribeInstanceInformation
+                  - ec2:DescribeInstances
+                  - ssm:SendCommand
+                  - ssm:ListCommands
+                  - ssm:ListCommandInvocations
+                  - ssm:CancelCommand
+                  - ssm:GetCommandInvocation
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref SNSNotificationTopic
+              - Effect: Allow
+                Action:
+                  - logs:*
+                  - cloudwatch:*
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt SSMAgentRole.Arn
+
+
+  StateMachineExpressSync:
+    Type: AWS::Serverless::StateMachine
+    Condition: DeployStepFunction
+    Properties:
+      DefinitionUri: statemachine/ssm_run_query.asl.json
+      Tracing:
+        Enabled: true
+      Type: EXPRESS
+      DefinitionSubstitutions:
+        DynamoDBTableTheater: !Ref DynamoDBTableTheater
+        SSMDocumentName: !Ref SSMDocument
+        SSMServiceRoleArn: !GetAtt SSMAgentRole.Arn
+        SSMNotificationArn: !Ref SNSNotificationTopic
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt StateMachineLogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Scan
+                - dynamodb:Query
+              Resource: !GetAtt DynamoDBTableTheater.Arn
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:DescribeInstanceInformation
+                - ec2:DescribeInstances
+                - ssm:SendCommand
+                - ssm:ListCommands
+                - ssm:ListCommandInvocations
+                - ssm:CancelCommand
+                - ssm:GetCommandInvocation
+              Resource: '*'
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:*
+                - cloudwatch:*
+              Resource: '*'
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref SNSNotificationTopic
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+              Resource: '*'
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - iam:PassRole
+              Resource: !GetAtt SSMAgentRole.Arn
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: DeployStepFunction
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-StateMachineExpressSync
+      RetentionInDays: 30
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+  StateMachineApi:
+    Type: AWS::Serverless::Api
+    Condition: DeployStepFunction
+    Properties:
+      StageName: Prod
+      TracingEnabled: true
+      Auth:
+        DefaultAuthorizer: CustomAuthorizer
+        Authorizers:
+          CustomAuthorizer:
+            FunctionPayloadType: REQUEST
+            FunctionArn: !GetAtt CustomAuthorizer.Arn
+            Identity:
+              Headers:
+                - x-api-key
+              ReauthorizeEvery: 0
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: !Sub ${AWS::StackName}-StateMachineExpressSync
+          version: 2018-11-29T23:30:00Z
+        paths:
+          /run:
+            post:
+              security:
+                - CustomAuthorizer: []
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:states:action/StartSyncExecution
+                credentials: !GetAtt StateMachineApiRole.Arn
+                requestTemplates:
+                  application/json: !Sub |
+                    #set($data = $util.escapeJavaScript($input.json('$')))
+                    {
+                      "stateMachineArn": "${StateMachineExpressSync}",
+                      "input": "{ \"data\": $data, \"resourcePath\" : { \"path\" : \"$context.resourcePath\" } }"
+                    }
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseTemplates:
+                      application/json: !Sub |
+                        #if($input.path('$.status').toString().equals("FAILED"))
+                          $input.path('$.cause')
+                        #else
+                          $input.path('$.output')
+                        #end
+              responses:
+                '200':
+                  description: 200 response
+          /query:
+            post:
+              security:
+                - CustomAuthorizer: []
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:states:action/StartSyncExecution
+                credentials: !GetAtt StateMachineApiRole.Arn
+                requestTemplates:
+                  application/json: !Sub |
+                    #set($data = $util.escapeJavaScript($input.json('$')))
+                    {
+                      "stateMachineArn": "${StateMachineExpressSync}",
+                      "input": "{ \"data\": $data, \"resourcePath\" : { \"path\" : \"$context.resourcePath\" } }"
+                    }
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseTemplates:
+                      application/json: !Sub |
+                        #if($input.path('$.status').toString().equals("FAILED"))
+                          $input.path('$.cause')
+                        #else
+                          $input.path('$.output')
+                        #end
+              responses:
+                '200':
+                  description: 200 response
+  StateMachineApiRole:
+    Type: AWS::IAM::Role
+    Condition: DeployStepFunction
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref AWS::StackName
+        - Key: Environment
+          Value: Prod
+        - Key: Owner
+          Value: mondanthody.firos@primefocus.com
+        - Key: map-migrated
+          Value: d-server-00c79yzv8q8cvz
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: StateMachineApiRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartSyncExecution
+                Resource:
+                  - !Ref StateMachineExpressSync
+Outputs:
+  SSMRunCommandApi:
+    Description: SSM Run Command API to initiate Exepdat file operation
+    Value: !Sub https://${ApiGatewayEndpoint}.execute-api.${AWS::Region}.amazonaws.com/Prod/run
+  SSMInvocationOutputApi:
+    Description: SSM Invocation CommandID Output and Progress API
+    Value: !Sub https://${ApiGatewayEndpoint}.execute-api.${AWS::Region}.amazonaws.com/Prod/query
+  SSMInstallScriptFile:
+    Description: SSM Install Script file download link using SSMInstallScriptGeneratorApi
+    Value: !Sub https://${SSMInstallScriptGeneratorApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/ssminstallscriptgenerator
+  Dashboard:
+    Description: Cloudwatch Dashboard
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${CloudwatchDashboard}
+  StateMachineApi:
+    Description: State Machine API
+    Condition: DeployStepFunction
+    Value: !Sub https://${StateMachineApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/run
+Metadata:
+  AWS::Composer::Groups:
+    Group:
+      Label: Compute
+      Members:
+        - ExpeDatSSMInvocationQuery
+        - ExpeDatSSMRunDocumet
+    Group2:
+      Label: DataStore
+      Members:
+        - DynamoDBTableTheater
+        - ExpeDatUserParameterName
+        - ExpeDatPassParameterName
+        - ExpeDatServerParameterName
+        - ExpeDatPortParameterName
+        - SSMActivationParameter
+        - DynamoDBTableStatus
+        - SSMDocument
+    Group3:
+      Label: Compute
+      Members:
+        - SSMInstallScriptGenerator
+    Group4:
+      Label: APIAuthorizer
+      Members:
+        - ApiGatewaySecretKeyResource
+        - CustomAuthorizer
+    Group5:
+      Label: Compute
+      Members:
+        - StateMachineExpressSync
+    Group6:
+      Label: Monitoring
+      Members:
+        - CloudwatchDashboard
+        - DashboardFunction

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CustomAuthorizer Documentation &mdash; DCinema Distribution AWS Resources 1.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="SSMAgentActivation Documentation" href="SSMAgentActivation.html" />
+    <link rel="prev" title="DashboardFunction Documentation" href="DashboardFunction.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            DCinema Distribution AWS Resources
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="template.html">Cloudformation Template</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Lambda Function</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ExpeDatSSMRunDocumet.html">ExpeDatSSMRunDocumet Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ExpeDatSSMInvocationQuery.html">ExpeDatSSMInvocationQuery Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMNotification.html">SSMNotification Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="DashboardFunction.html">DashboardFunction Documentation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">CustomAuthorizer Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMAgentActivation.html">SSMAgentActivation Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMInstallScriptGenerator.html">SSMInstallScriptGenerator Documentation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">DCinema Distribution AWS Resources</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Lambda Function</a></li>
+      <li class="breadcrumb-item active">CustomAuthorizer Documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/CustomAuthorizer.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-CustomAuthorizer.index">
+<span id="customauthorizer-documentation"></span><h1>CustomAuthorizer Documentation<a class="headerlink" href="#module-CustomAuthorizer.index" title="Permalink to this headline"></a></h1>
+<p>This function authorizes an API Gateway request using an API key stored in AWS Secrets Manager. The API key is cached in environment variables to avoid unnecessary calls to AWS Secrets Manager. This function is intended to be used as a custom authorizer for API Gateway.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="CustomAuthorizer.index.fetch_secret_value">
+<span class="sig-prename descclassname"><span class="pre">CustomAuthorizer.index.</span></span><span class="sig-name descname"><span class="pre">fetch_secret_value</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/CustomAuthorizer/index.html#fetch_secret_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CustomAuthorizer.index.fetch_secret_value" title="Permalink to this definition"></a></dt>
+<dd><p>Fetches the secret value from AWS Secrets Manager and caches it in environment variables.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A dictionary containing the secret value.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="CustomAuthorizer.index.generate_policy">
+<span class="sig-prename descclassname"><span class="pre">CustomAuthorizer.index.</span></span><span class="sig-name descname"><span class="pre">generate_policy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">principal_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">effect</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resource</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/CustomAuthorizer/index.html#generate_policy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CustomAuthorizer.index.generate_policy" title="Permalink to this definition"></a></dt>
+<dd><p>Generates a policy for API Gateway authorization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>principal_id</strong> – The principal ID.</p></li>
+<li><p><strong>effect</strong> – The effect of the policy (Allow/Deny).</p></li>
+<li><p><strong>resource</strong> – The resource to authorize access to.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary containing the authorization policy.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="CustomAuthorizer.index.lambda_handler">
+<span class="sig-prename descclassname"><span class="pre">CustomAuthorizer.index.</span></span><span class="sig-name descname"><span class="pre">lambda_handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/CustomAuthorizer/index.html#lambda_handler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CustomAuthorizer.index.lambda_handler" title="Permalink to this definition"></a></dt>
+<dd><p>Authorizes an API Gateway request.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event</strong> – A dictionary containing the API Gateway event.</p></li>
+<li><p><strong>context</strong> – The Lambda context object.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary containing the authorization policy.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="DashboardFunction.html" class="btn btn-neutral float-left" title="DashboardFunction Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="SSMAgentActivation.html" class="btn btn-neutral float-right" title="SSMAgentActivation Documentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Prime Focus.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

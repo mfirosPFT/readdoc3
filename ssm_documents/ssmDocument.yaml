@@ -1,0 +1,93 @@
+---
+schemaVersion: "2.2"
+description: "Command Document ExpeDat Copy"
+parameters:
+  SourcePath:
+    default: "/tmp/caffeine"
+    description: "location of the source"
+    type: "String"
+  DestinationPath:
+    default: "/tmp/DCinema/downloads"
+    description: "location of the destination Linux"
+    type: "String"
+  ExpeDatServer:
+    default: "{{ssm:/DCinema/expedat/server}}"
+    description: "ExpeDat server IP"
+    type: "String"
+  ClientId:
+    default: "PVR-0001"
+    description: "Client ID"
+    type: "String"
+  ExpeDatUser:
+    default: "{{ssm:/DCinema/expedat/username}}"
+    description: "ExpeDat username"
+    type: "String"
+  ExpeDatPass:
+    default: "{{ssm:/DCinema/expedat/password}}"
+    description: "ExpeDat password"
+    type: "String"
+  LogParser:
+    type: "String"
+    description: "Python script to run"
+    default: "base64 -d"
+  GenerateHash:
+    type: "String"
+    description: "Python script to run"
+    default: "base64 -d"
+  APIGatewayUrl:
+    type: "String"
+    description: "The URL of the API Gateway endpoint that generates a presigned URL for S3"
+    default: "https://test.execute-api.ap-south-1.amazonaws.com/Prod"
+  Date:
+    type: "String"
+    description: "Date of the event"
+    default: "2020-01-01"
+mainSteps:
+- name: "ExpeDat"
+  action: "aws:runShellScript"
+  inputs:
+    timeoutSeconds: 172800
+    runCommand:
+    - "#!/bin/sh"
+    - "set -e"
+    - 'destination_path="/tmp/DCinema/downloads/$(basename {{SourcePath}})/"'
+    - 'mkdir -p "${destination_path}"'
+    - 'mkdir -p "/tmp/DCinema/logs/"'
+    - 'export source_path="{{SourcePath}}"'
+    - 'log_date="$(date +%Y%m%d-%H%M%S)"'
+    - 'log_file="/tmp/DCinema/logs/${log_date}_$(basename {{SourcePath}})_movedat.log"'
+    - 'export LogParser="{{LogParser}}"'
+    - 'touch "${log_file}"'
+    - 'export retry=0'
+    - 'export max_retry=10'
+    - 'export retry_interval=600'
+    - 'while [ $retry -lt $max_retry ]; do'
+    - '  if movedat -h -r -y -s -t 120 "{{ExpeDatUser}}:{{ExpeDatPass}}@{{ExpeDatServer}}:{{SourcePath}}" "${destination_path}" >> "${log_file}" 2>&1 || [ $? -eq 255 ]; then'
+    - '    if python3 -c "$(echo $LogParser | base64 -d)" "${log_file}"; then'
+    - '      echo "Success"'
+    - '      break'
+    - '    else'
+    - '      echo "Failed to parse log file"'
+    - '      exit 1'
+    - '    fi'
+    - '  else'
+    - '    echo "Failed to copy files"'
+    - '    retry=$((retry+1))'
+    - '    echo "Retry $retry"'
+    - '    sleep $retry_interval'
+    - '  fi'
+    - 'done'
+    - 'if [ $retry -eq $max_retry ]; then'
+    - '  echo "Failed to copy files after $max_retry retries"'
+    - '  exit 1'
+    - 'fi'
+    - 'export GenerateHash="{{GenerateHash}}"'
+    - 'if python3 -c "$(echo $GenerateHash | base64 -d)" ${destination_path} {{SourcePath}} {{ClientId}} {{APIGatewayUrl}} {{Date}}; then'
+    - '  echo "Success"'
+    - 'else'
+    - '  echo "Failed to generate hash"'
+    - '  exit 1'
+    - 'fi'
+    - 'echo "Done"'
+    workingDirectory: "/"
+

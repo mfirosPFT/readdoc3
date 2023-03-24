@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExpeDatSSMInvocationQuery Documentation &mdash; DCinema Distribution AWS Resources 1.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="SSMNotification Documentation" href="SSMNotification.html" />
+    <link rel="prev" title="ExpeDatSSMRunDocumet Documentation" href="ExpeDatSSMRunDocumet.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            DCinema Distribution AWS Resources
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="template.html">Cloudformation Template</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Lambda Function</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ExpeDatSSMRunDocumet.html">ExpeDatSSMRunDocumet Documentation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">ExpeDatSSMInvocationQuery Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMNotification.html">SSMNotification Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="DashboardFunction.html">DashboardFunction Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="CustomAuthorizer.html">CustomAuthorizer Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMAgentActivation.html">SSMAgentActivation Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMInstallScriptGenerator.html">SSMInstallScriptGenerator Documentation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">DCinema Distribution AWS Resources</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Lambda Function</a></li>
+      <li class="breadcrumb-item active">ExpeDatSSMInvocationQuery Documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/ExpeDatSSMInvocationQuery.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-ExpeDatSSMInvocationQuery.index">
+<span id="expedatssminvocationquery-documentation"></span><h1>ExpeDatSSMInvocationQuery Documentation<a class="headerlink" href="#module-ExpeDatSSMInvocationQuery.index" title="Permalink to this headline"></a></h1>
+<p>Lambda function for the ExpeDatSSMInvocationQuery function. This function is used to query the status of the ExpeDat DCP transfer on the Theater Box’s. The function is triggered by an API Gateway endpoint. The function uses the AWS Systems Manager (SSM) API to query the status of the SSM Agent on the managed instances.</p>
+<dl class="simple">
+<dt>Functions:</dt><dd><ul class="simple">
+<li><p>lambda_handler: The main function of the Lambda function. This function is triggered by an API Gateway endpoint. The function uses the AWS Systems Manager (SSM) API to query the status of the SSM Agent on the managed instances.</p></li>
+<li><p>extract_info: Extracts the info from the output of the command invocation.</p></li>
+<li><p>retry_with_backoff: Retries a function with exponential backoff.</p></li>
+<li><p>get_instance_id: Gets the instance id of the managed instance.</p></li>
+<li><p>get_connection_status: Gets the connection status of the theater box.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="ExpeDatSSMInvocationQuery.index.extract_info">
+<span class="sig-prename descclassname"><span class="pre">ExpeDatSSMInvocationQuery.index.</span></span><span class="sig-name descname"><span class="pre">extract_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ExpeDatSSMInvocationQuery/index.html#extract_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ExpeDatSSMInvocationQuery.index.extract_info" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ExpeDatSSMInvocationQuery.index.format_time">
+<span class="sig-prename descclassname"><span class="pre">ExpeDatSSMInvocationQuery.index.</span></span><span class="sig-name descname"><span class="pre">format_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_sec</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ExpeDatSSMInvocationQuery/index.html#format_time"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ExpeDatSSMInvocationQuery.index.format_time" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ExpeDatSSMInvocationQuery.index.get_connection_status">
+<span class="sig-prename descclassname"><span class="pre">ExpeDatSSMInvocationQuery.index.</span></span><span class="sig-name descname"><span class="pre">get_connection_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instance_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ExpeDatSSMInvocationQuery/index.html#get_connection_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ExpeDatSSMInvocationQuery.index.get_connection_status" title="Permalink to this definition"></a></dt>
+<dd><p>Get the connection status of an Amazon managed instance.</p>
+<p>This function retrieves the connection status for a given instance by using the AWS Systems Manager API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>instance_id</strong> (<em>str</em>) – The ID of the instance.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The connection status of the instance.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">get_connection_status</span><span class="p">(</span><span class="s2">&quot;m-1234567890232&quot;</span><span class="p">)</span>
+<span class="go">&quot;Online&quot;</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Exeption:</dt><dd><p>botocore.exceptions.ClientError: If there was an issue with the client’s request.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ExpeDatSSMInvocationQuery.index.get_instance_id">
+<span class="sig-prename descclassname"><span class="pre">ExpeDatSSMInvocationQuery.index.</span></span><span class="sig-name descname"><span class="pre">get_instance_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">theater_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ExpeDatSSMInvocationQuery/index.html#get_instance_id"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ExpeDatSSMInvocationQuery.index.get_instance_id" title="Permalink to this definition"></a></dt>
+<dd><p>Get the instance ID for a given client.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>client_id</strong> (<em>str</em>) – The ID of the client.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The instance ID of the client.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.ClientError</strong> – If there was an issue with the client’s request.</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">get_instance_id</span><span class="p">(</span><span class="s2">&quot;PVR-001&quot;</span><span class="p">)</span>
+<span class="go">&quot;m-1234567890232&quot;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ExpeDatSSMInvocationQuery.index.lambda_handler">
+<span class="sig-prename descclassname"><span class="pre">ExpeDatSSMInvocationQuery.index.</span></span><span class="sig-name descname"><span class="pre">lambda_handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">aws_lambda_powertools.utilities.typing.lambda_context.LambdaContext</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ExpeDatSSMInvocationQuery/index.html#lambda_handler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ExpeDatSSMInvocationQuery.index.lambda_handler" title="Permalink to this definition"></a></dt>
+<dd><p>Lambda handler for the ExpeDatSSMInvocationQuery function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event</strong> (<em>dict</em>) – The event data passed to the function.</p></li>
+<li><p><strong>context</strong> (<em>LambdaContext</em>) – The context data passed to the function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary containing the response data.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">lambda_handler</span><span class="p">({</span><span class="s2">&quot;JobId&quot;</span><span class="p">:</span> <span class="s2">&quot;1234567890&quot;</span><span class="p">,</span> <span class="s2">&quot;ClientId&quot;</span><span class="p">:</span> <span class="s2">&quot;PVR-001&quot;</span><span class="p">},</span> <span class="p">{})</span>
+<span class="go">{&quot;statusCode&quot;: 200, &quot;body&quot;: json.dumps({&quot;ClientId&quot;: &quot;PVR-001&quot;, &quot;JobId&quot;: &quot;1234567890&quot;, &quot;InstanceId&quot;: &quot;m-1234567890abcdef0&quot;, &quot;ExecutionStartDateTime&quot;: &quot;2020-01-01T00:00:00Z&quot;, &quot;ExecutionElapsedTime&quot;: &quot;PT0S&quot;, &quot;Status&quot;: &quot;Success&quot;, &quot;StatusDetails&quot;: &quot;Success&quot;, &quot;StandardOutputContent&quot;: &quot;Success&quot;, &quot;StandardErrorContent&quot;: &quot;&quot;})}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ExpeDatSSMInvocationQuery.index.retry_with_backoff">
+<span class="sig-prename descclassname"><span class="pre">ExpeDatSSMInvocationQuery.index.</span></span><span class="sig-name descname"><span class="pre">retry_with_backoff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">function</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ExpeDatSSMInvocationQuery/index.html#retry_with_backoff"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ExpeDatSSMInvocationQuery.index.retry_with_backoff" title="Permalink to this definition"></a></dt>
+<dd><p>Retries a function with exponential backoff.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>function</strong> (<em>function</em>) – The function to retry.</p></li>
+<li><p><strong>*args</strong> – The arguments to pass to the function.</p></li>
+<li><p><strong>**kwargs</strong> – The keyword arguments to pass to the function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The return value of the function.</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">retry_with_backoff</span><span class="p">(</span><span class="n">my_function</span><span class="p">,</span> <span class="s2">&quot;arg1&quot;</span><span class="p">,</span> <span class="s2">&quot;arg2&quot;</span><span class="p">,</span> <span class="n">kwarg1</span><span class="o">=</span><span class="s2">&quot;kwarg1&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ExpeDatSSMInvocationQuery.index.run_progress_command">
+<span class="sig-prename descclassname"><span class="pre">ExpeDatSSMInvocationQuery.index.</span></span><span class="sig-name descname"><span class="pre">run_progress_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instanceID</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ExpeDatSSMInvocationQuery/index.html#run_progress_command"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ExpeDatSSMInvocationQuery.index.run_progress_command" title="Permalink to this definition"></a></dt>
+<dd><p>Runs the progress command on the managed instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>instanceID</strong> (<em>str</em>) – The ID of the managed instance.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The output of the command invocation.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.ClientError</strong> – If there was an issue with the client’s request.</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">run_progress_command</span><span class="p">(</span><span class="s2">&quot;m-1234567890232&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ExpeDatSSMRunDocumet.html" class="btn btn-neutral float-left" title="ExpeDatSSMRunDocumet Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="SSMNotification.html" class="btn btn-neutral float-right" title="SSMNotification Documentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Prime Focus.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

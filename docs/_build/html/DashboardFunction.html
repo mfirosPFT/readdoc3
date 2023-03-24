@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DashboardFunction Documentation &mdash; DCinema Distribution AWS Resources 1.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CustomAuthorizer Documentation" href="CustomAuthorizer.html" />
+    <link rel="prev" title="SSMNotification Documentation" href="SSMNotification.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            DCinema Distribution AWS Resources
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="template.html">Cloudformation Template</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Lambda Function</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ExpeDatSSMRunDocumet.html">ExpeDatSSMRunDocumet Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ExpeDatSSMInvocationQuery.html">ExpeDatSSMInvocationQuery Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMNotification.html">SSMNotification Documentation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">DashboardFunction Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="CustomAuthorizer.html">CustomAuthorizer Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMAgentActivation.html">SSMAgentActivation Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="SSMInstallScriptGenerator.html">SSMInstallScriptGenerator Documentation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">DCinema Distribution AWS Resources</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Lambda Function</a></li>
+      <li class="breadcrumb-item active">DashboardFunction Documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/DashboardFunction.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-DashboardFunction.index">
+<span id="dashboardfunction-documentation"></span><h1>DashboardFunction Documentation<a class="headerlink" href="#module-DashboardFunction.index" title="Permalink to this headline"></a></h1>
+<p>This module provides a Lambda function that generates a table of AWS cost and usage data or a table of AWS System Manager (SSM) command invocation statuses based on user input. The function is triggered by an AWS CloudWatch dashboard widget.</p>
+<dl class="simple">
+<dt>Functions:</dt><dd><ul class="simple">
+<li><p>generate_table_cost(data): Generates an HTML table with AWS cost and usage data.</p></li>
+<li><p>generate_table_ssm(data): Generates an HTML table with SSM command statuses.</p></li>
+<li><p>convert_filter(filter_input, start_time, end_time): Formats start and end times and adds input filter to a list.</p></li>
+<li><p>get_command_statuses(start_time, end_time): Returns a dictionary of counts for each SSM command invocation status type.</p></li>
+<li><p>get_cost_usage(start_time, end_time): Returns an HTML table of AWS cost and usage data grouped by service.</p></li>
+<li><p>lambda_handler(event, context): Main Lambda function that determines which function to run based on user input and returns the result as an HTML table.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.convert_filter">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">convert_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#convert_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.convert_filter" title="Permalink to this definition"></a></dt>
+<dd><p>Convert the input filter into a format that can be used with AWS Systems Manager ListCommands API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filter_input</strong> (<em>dict</em>) – A dictionary representing the filter to be converted.</p></li>
+<li><p><strong>start_time</strong> (<em>int</em>) – The start time in milliseconds.</p></li>
+<li><p><strong>end_time</strong> (<em>int</em>) – The end time in milliseconds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A list of dictionaries representing the converted filter.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.generate_table_cost">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">generate_table_cost</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#generate_table_cost"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.generate_table_cost" title="Permalink to this definition"></a></dt>
+<dd><p>Generate an HTML table with AWS cost usage.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – A dictionary containing AWS cost usage.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>An HTML table with AWS cost usage.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;AWS Lambda&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0000001&#39;</span><span class="p">,</span> <span class="s1">&#39;Amazon RDS&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0000002&#39;</span><span class="p">,</span> <span class="s1">&#39;Amazon S3&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0000003&#39;</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">generate_table_cost</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="go">&#39;&lt;table&gt;...&lt;/table&gt;&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.generate_table_ssm">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">generate_table_ssm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#generate_table_ssm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.generate_table_ssm" title="Permalink to this definition"></a></dt>
+<dd><p>Generate an HTML table with SSM command statuses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – A dictionary containing SSM command statuses.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>An HTML table with SSM command statuses.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Pending&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;InProgress&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;Success&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;Cancelled&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Failed&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;TimedOut&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="s1">&#39;DeliveryTimedOut&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;ExecutionTimedOut&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Incomplete&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;LimitExceeded&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">generate_table_ssm</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="go">&#39;&lt;table&gt;...&lt;/table&gt;&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.get_command_statuses">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">get_command_statuses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#get_command_statuses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.get_command_statuses" title="Permalink to this definition"></a></dt>
+<dd><p>Get the number of AWS Systems Manager commands in each status during the specified time period.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_time</strong> (<em>int</em>) – The start time in milliseconds.</p></li>
+<li><p><strong>end_time</strong> (<em>int</em>) – The end time in milliseconds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dictionary where the keys are command statuses and the values are the number of commands in that status.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.get_cost_usage">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">get_cost_usage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#get_cost_usage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.get_cost_usage" title="Permalink to this definition"></a></dt>
+<dd><p>Get the cost and usage breakdown by AWS service during the specified time period.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_time</strong> (<em>int</em>) – The start time in milliseconds.</p></li>
+<li><p><strong>end_time</strong> (<em>int</em>) – The end time in milliseconds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A string representing an HTML table with the cost and usage breakdown by service.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="DashboardFunction.index.lambda_handler">
+<span class="sig-prename descclassname"><span class="pre">DashboardFunction.index.</span></span><span class="sig-name descname"><span class="pre">lambda_handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/DashboardFunction/index.html#lambda_handler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#DashboardFunction.index.lambda_handler" title="Permalink to this definition"></a></dt>
+<dd><p>AWS Lambda function handler.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event</strong> (<em>dict</em>) – A dictionary representing the event that triggered the Lambda function.</p></li>
+<li><p><strong>context</strong> (<em>object</em>) – An object representing the runtime context of the Lambda function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A string representing an HTML table with the cost and usage breakdown by service, or the number of AWS Systems Manager commands in each status during the specified time period.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="SSMNotification.html" class="btn btn-neutral float-left" title="SSMNotification Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="CustomAuthorizer.html" class="btn btn-neutral float-right" title="CustomAuthorizer Documentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Prime Focus.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,631 @@
+<mxfile host="65bd71144e" pages="2">
+    <diagram id="diagramid" name="Diagram">
+        <mxGraphModel dx="3244" dy="2017" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="ApiGatewaySecretKeyResource" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.secretsmanager;" parent="1" vertex="1">
+                    <mxGeometry x="750" y="675" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="CustomAuthorizer" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="525" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="CustomAuthorizerRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="725" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="ApiGatewayEndpoint" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#945DF2;gradientDirection=north;fillColor=#5A30B5;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;" parent="1" vertex="1">
+                    <mxGeometry y="325" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="ExpeDatSSMRunDocumet" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="178.57142857142858" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="ExpeDatSSMInvocationQuery" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="325" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="SSMAgentActivation" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" parent="1" vertex="1">
+                    <mxGeometry x="750" y="525" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="SSMNotification" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" parent="1" vertex="1">
+                    <mxGeometry x="1000" y="150" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="SSMNotificationRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="189.752197265625" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="11" value="SSMActivationApi" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#945DF2;gradientDirection=north;fillColor=#5A30B5;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="625" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" value="SSMInstallScriptGenerator" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="425" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" value="SSMInstallScriptGeneratorApi" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#945DF2;gradientDirection=north;fillColor=#5A30B5;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;" parent="1" vertex="1">
+                    <mxGeometry y="525" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="14" value="SSMInstallScriptGeneratorRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="525" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="CommonLambdaLayer" style="outlineConnect=0;gradientDirection=north;fillColor=#fad7ac;strokeColor=#b46504;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.serverless;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="375" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="16" value="ExpeDatSSMRunDocumetRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="175" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="17" value="ExpeDatSSMInvocationQueryRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="275" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="18" value="SSMAgentActivationRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="1000" y="600" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="19" value="SSMAgentRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="950" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" value="SNSNotificationTopic" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sns;" parent="1" vertex="1">
+                    <mxGeometry x="750" y="125" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="21" value="SSMSNSPublishRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="50" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="22" value="SSMDocument" style="sketch=0;outlineConnect=0;fontColor=#B3B3B3;gradientColor=none;fillColor=#B0084D;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.documents;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="675" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="23" value="ExpeDatUserParameterName" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.parameter_store;" parent="1" vertex="1">
+                    <mxGeometry x="1500" y="700" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="24" value="ExpeDatPassParameterName" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.parameter_store;" parent="1" vertex="1">
+                    <mxGeometry x="1500" y="400" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="25" value="ExpeDatServerParameterName" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.parameter_store;" parent="1" vertex="1">
+                    <mxGeometry x="1500" y="500" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="ExpeDatPortParameterName" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.parameter_store;" parent="1" vertex="1">
+                    <mxGeometry x="1500" y="600" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="27" value="SSMActivationParameter" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.parameter_store;" parent="1" vertex="1">
+                    <mxGeometry x="1000" y="700" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="28" value="DynamoDBTableTheater" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#4D72F3;gradientDirection=north;fillColor=#3334B9;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="475" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="29" value="DynamoDBTableStatus" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#4D72F3;gradientDirection=north;fillColor=#3334B9;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" parent="1" vertex="1">
+                    <mxGeometry x="1500" y="227.8472900390625" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="30" value="DashboardFunction" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="625" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="31" value="DashboardFunctionRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="825" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="32" value="CloudwatchDashboard" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" parent="1" vertex="1">
+                    <mxGeometry y="425" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="33" value="StateMachineExpressSync" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.step_functions;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="975" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="34" value="StateMachineLogGroup" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" parent="1" vertex="1">
+                    <mxGeometry x="750" y="925" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" value="StateMachineApi" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#945DF2;gradientDirection=north;fillColor=#5A30B5;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;" parent="1" vertex="1">
+                    <mxGeometry y="823.4375" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="36" value="StateMachineApiRole" style="outlineConnect=0;fontColor=#B3B3B3;gradientColor=#F54749;gradientDirection=north;fillColor=#C7131F;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="823.4375" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="CustomAuthorizerRole|CustomAuthorizer" value="Role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="3" target="4" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="550"/>
+                            <mxPoint x="488" y="750"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ApiGatewaySecretKeyResource|CustomAuthorizerRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="4" target="2" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="562" y="750"/>
+                            <mxPoint x="738" y="700"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="CustomAuthorizer|ApiGatewayEndpoint" value="FunctionArn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="5" target="3" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="62" y="363.3333333333333"/>
+                            <mxPoint x="238" y="540"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableTheater|ExpeDatSSMRunDocumet" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="6" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="316" y="203.57142857142858"/>
+                            <mxPoint x="400" y="125"/>
+                            <mxPoint x="650" y="125"/>
+                            <mxPoint x="650" y="225"/>
+                            <mxPoint x="900" y="225"/>
+                            <mxPoint x="900" y="250"/>
+                            <mxPoint x="1150" y="250"/>
+                            <mxPoint x="1236" y="484.375"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMDocument|ExpeDatSSMRunDocumet" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="6" target="22" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="219.57142857142858"/>
+                            <mxPoint x="400" y="475"/>
+                            <mxPoint x="650" y="475"/>
+                            <mxPoint x="650" y="625"/>
+                            <mxPoint x="900" y="625"/>
+                            <mxPoint x="900" y="800"/>
+                            <mxPoint x="1150" y="800"/>
+                            <mxPoint x="1236" y="695"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SNSNotificationTopic|ExpeDatSSMRunDocumet" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="6" target="20" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="314" y="195.57142857142858"/>
+                            <mxPoint x="400" y="75"/>
+                            <mxPoint x="650" y="75"/>
+                            <mxPoint x="738" y="136.66666666666666"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ApiGatewayEndpoint|ExpeDatSSMRunDocumet" value="Invoke&#10;RestApiId" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#1ba1e2;strokeColor=#006EAF;labelBackgroundColor=none;fontColor=#7EA6E0;noEdgeStyle=1;orthogonal=1;" parent="1" source="5" target="6" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="62" y="336.6666666666667"/>
+                            <mxPoint x="238" y="193.57142857142858"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ExpeDatSSMRunDocumetRole|ExpeDatSSMRunDocumet" value="Role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="6" target="16" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="314" y="211.57142857142858"/>
+                            <mxPoint x="488" y="200"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMSNSPublishRole|ExpeDatSSMRunDocumet" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="6" target="21" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="187.57142857142858"/>
+                            <mxPoint x="400" y="25"/>
+                            <mxPoint x="650" y="25"/>
+                            <mxPoint x="650" y="25"/>
+                            <mxPoint x="900" y="25"/>
+                            <mxPoint x="900" y="50"/>
+                            <mxPoint x="1150" y="50"/>
+                            <mxPoint x="1236" y="70"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableTheater|ExpeDatSSMInvocationQuery" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="7" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="360"/>
+                            <mxPoint x="400" y="375"/>
+                            <mxPoint x="650" y="375"/>
+                            <mxPoint x="650" y="375"/>
+                            <mxPoint x="900" y="375"/>
+                            <mxPoint x="900" y="350"/>
+                            <mxPoint x="1150" y="350"/>
+                            <mxPoint x="1232" y="496.875"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ApiGatewayEndpoint|ExpeDatSSMInvocationQuery" value="Invoke&#10;RestApiId" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#1ba1e2;strokeColor=#006EAF;labelBackgroundColor=none;fontColor=#7EA6E0;noEdgeStyle=1;orthogonal=1;" parent="1" source="5" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="64" y="350"/>
+                            <mxPoint x="238" y="340"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ExpeDatSSMInvocationQueryRole|ExpeDatSSMInvocationQuery" value="Role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="7" target="17" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="340"/>
+                            <mxPoint x="488" y="300"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableTheater|SSMAgentActivation" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="8" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="812" y="535"/>
+                            <mxPoint x="900" y="550"/>
+                            <mxPoint x="1150" y="550"/>
+                            <mxPoint x="1236" y="515.625"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMAgentRole|SSMAgentActivation" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="8" target="19" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="812" y="565"/>
+                            <mxPoint x="900" y="950"/>
+                            <mxPoint x="1150" y="950"/>
+                            <mxPoint x="1236" y="970"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMActivationParameter|SSMAgentActivation" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="8" target="27" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="814" y="555"/>
+                            <mxPoint x="988" y="725"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMActivationApi|SSMAgentActivation" value="Invoke&#10;RestApiId" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#1ba1e2;strokeColor=#006EAF;labelBackgroundColor=none;fontColor=#7EA6E0;noEdgeStyle=1;orthogonal=1;" parent="1" source="11" target="8" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="562" y="650"/>
+                            <mxPoint x="738" y="550"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMAgentActivationRole|SSMAgentActivation" value="Role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="8" target="18" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="814" y="545"/>
+                            <mxPoint x="988" y="625"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="CommonLambdaLayer|SSMNotification" value="Layers" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="9" target="15" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1066" y="178.33333333333331"/>
+                            <mxPoint x="1238" y="390"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMDocument|SSMNotification" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="9" target="22" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1062" y="191.66666666666663"/>
+                            <mxPoint x="1238" y="685"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableTheater|SSMNotification" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="9" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1064" y="184.99999999999997"/>
+                            <mxPoint x="1238" y="478.125"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableStatus|SSMNotification" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="9" target="29" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1066" y="171.66666666666666"/>
+                            <mxPoint x="1150" y="289.752197265625"/>
+                            <mxPoint x="1400" y="289.752197265625"/>
+                            <mxPoint x="1488" y="262.8472900390625"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SNSNotificationTopic|SSMNotification" value="Invoke&#10;Topic" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#1ba1e2;strokeColor=#006EAF;labelBackgroundColor=none;fontColor=#7EA6E0;noEdgeStyle=1;orthogonal=1;" parent="1" source="20" target="9" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="812" y="160"/>
+                            <mxPoint x="988" y="175"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMNotificationRole|SSMNotification" value="Role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="9" target="10" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1064" y="165"/>
+                            <mxPoint x="1238" y="214.752197265625"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMSNSPublishRole|SSMNotification" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="9" target="21" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1062" y="158.33333333333334"/>
+                            <mxPoint x="1238" y="90"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableStatus|SSMNotificationRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="10" target="29" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1312" y="214.752197265625"/>
+                            <mxPoint x="1488" y="242.8472900390625"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="CommonLambdaLayer|SSMInstallScriptGenerator" value="Layers" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="12" target="15" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="436.6666666666667"/>
+                            <mxPoint x="400" y="425"/>
+                            <mxPoint x="650" y="425"/>
+                            <mxPoint x="650" y="425"/>
+                            <mxPoint x="900" y="425"/>
+                            <mxPoint x="900" y="500"/>
+                            <mxPoint x="1150" y="500"/>
+                            <mxPoint x="1238" y="410"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMInstallScriptGeneratorApi|SSMInstallScriptGenerator" value="Invoke&#10;RestApiId" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#1ba1e2;strokeColor=#006EAF;labelBackgroundColor=none;fontColor=#7EA6E0;noEdgeStyle=1;orthogonal=1;" parent="1" source="13" target="12" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="62" y="550"/>
+                            <mxPoint x="238" y="450"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMActivationApi|SSMInstallScriptGenerator" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="12" target="11" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="463.3333333333333"/>
+                            <mxPoint x="488" y="650"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMInstallScriptGeneratorRole|SSMInstallScriptGenerator" value="Role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="12" target="14" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="314" y="450"/>
+                            <mxPoint x="488" y="550"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableTheater|ExpeDatSSMRunDocumetRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="16" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="564" y="200"/>
+                            <mxPoint x="650" y="275"/>
+                            <mxPoint x="900" y="275"/>
+                            <mxPoint x="900" y="300"/>
+                            <mxPoint x="1150" y="300"/>
+                            <mxPoint x="1234" y="490.625"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMSNSPublishRole|ExpeDatSSMRunDocumetRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="16" target="21" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="562" y="186.66666666666666"/>
+                            <mxPoint x="650" y="75"/>
+                            <mxPoint x="900" y="75"/>
+                            <mxPoint x="900"/>
+                            <mxPoint x="1150"/>
+                            <mxPoint x="1238" y="60"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMAgentRole|ExpeDatSSMRunDocumetRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="16" target="19" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="562" y="213.33333333333334"/>
+                            <mxPoint x="650" y="825"/>
+                            <mxPoint x="900" y="825"/>
+                            <mxPoint x="900" y="1000"/>
+                            <mxPoint x="1150" y="1000"/>
+                            <mxPoint x="1236" y="980"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SNSNotificationTopic|ExpeDatSSMInvocationQueryRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="17" target="20" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="562" y="290"/>
+                            <mxPoint x="736" y="150"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableTheater|ExpeDatSSMInvocationQueryRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="17" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="562" y="310"/>
+                            <mxPoint x="650" y="325"/>
+                            <mxPoint x="900" y="325"/>
+                            <mxPoint x="900" y="400"/>
+                            <mxPoint x="1150" y="400"/>
+                            <mxPoint x="1232" y="503.125"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableTheater|SSMAgentActivationRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="18" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1062" y="615"/>
+                            <mxPoint x="1238" y="521.875"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMAgentRole|SSMAgentActivationRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="18" target="19" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1062" y="635"/>
+                            <mxPoint x="1238" y="960"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SNSNotificationTopic|SSMSNSPublishRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="21" target="20" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1236" y="80"/>
+                            <mxPoint x="1150" y="100"/>
+                            <mxPoint x="900" y="100"/>
+                            <mxPoint x="812" y="140"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ExpeDatUserParameterName|SSMDocument" value="default" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="22" target="23" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1312" y="715"/>
+                            <mxPoint x="1488" y="725"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ExpeDatPassParameterName|SSMDocument" value="default" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="22" target="24" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1312" y="685"/>
+                            <mxPoint x="1488" y="425"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ExpeDatServerParameterName|SSMDocument" value="default" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="22" target="25" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1314" y="695"/>
+                            <mxPoint x="1488" y="525"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ExpeDatPortParameterName|SSMDocument" value="default" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="22" target="26" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1314" y="705"/>
+                            <mxPoint x="1488" y="625"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMDocument|DashboardFunction" value="Variable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="30" target="22" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="660"/>
+                            <mxPoint x="400" y="925"/>
+                            <mxPoint x="650" y="925"/>
+                            <mxPoint x="650" y="775"/>
+                            <mxPoint x="900" y="775"/>
+                            <mxPoint x="900" y="850"/>
+                            <mxPoint x="1150" y="850"/>
+                            <mxPoint x="1236" y="705"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DashboardFunctionRole|DashboardFunction" value="Role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="30" target="31" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="640"/>
+                            <mxPoint x="488" y="850"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ExpeDatSSMRunDocumet|CloudwatchDashboard" value="DashboardBody" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="32" target="6" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="62" y="436.6666666666667"/>
+                            <mxPoint x="238" y="213.57142857142858"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ExpeDatSSMInvocationQuery|CloudwatchDashboard" value="DashboardBody" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="32" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="64" y="450"/>
+                            <mxPoint x="238" y="360"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DashboardFunction|CloudwatchDashboard" value="DashboardBody" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="32" target="30" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="62" y="463.3333333333333"/>
+                            <mxPoint x="238" y="650"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="DynamoDBTableTheater|StateMachineExpressSync" value="DynamoDBTableTheater&#10;Statement" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="33" target="28" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="564" y="992"/>
+                            <mxPoint x="650" y="475"/>
+                            <mxPoint x="900" y="475"/>
+                            <mxPoint x="900" y="450"/>
+                            <mxPoint x="1150" y="450"/>
+                            <mxPoint x="1234" y="509.375"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMDocument|StateMachineExpressSync" value="SSMDocumentName" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="33" target="22" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="566" y="1000"/>
+                            <mxPoint x="650" y="875"/>
+                            <mxPoint x="900" y="875"/>
+                            <mxPoint x="900" y="900"/>
+                            <mxPoint x="1150" y="900"/>
+                            <mxPoint x="1238" y="715"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SNSNotificationTopic|StateMachineExpressSync" value="SSMNotificationArn&#10;Statement" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="33" target="20" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="562" y="984"/>
+                            <mxPoint x="738" y="163.33333333333334"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="SSMAgentRole|StateMachineExpressSync" value="SSMServiceRoleArn&#10;Statement" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="33" target="19" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="562" y="1016"/>
+                            <mxPoint x="650" y="1050"/>
+                            <mxPoint x="900" y="1050"/>
+                            <mxPoint x="900" y="1050"/>
+                            <mxPoint x="1150" y="1050"/>
+                            <mxPoint x="1238" y="990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="StateMachineLogGroup|StateMachineExpressSync" value="LogGroupArn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="33" target="34" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="564" y="1008"/>
+                            <mxPoint x="738" y="950"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="StateMachineExpressSync|StateMachineApi" value="application/json" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="35" target="33" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="62" y="861.7708333333334"/>
+                            <mxPoint x="150" y="923.4375"/>
+                            <mxPoint x="400" y="923.4375"/>
+                            <mxPoint x="488" y="1010"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="CustomAuthorizer|StateMachineApi" value="FunctionArn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="35" target="3" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="62" y="835.1041666666666"/>
+                            <mxPoint x="238" y="560"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="StateMachineApiRole|StateMachineApi" value="credentials" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="35" target="36" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="64" y="848.4375"/>
+                            <mxPoint x="238" y="848.4375"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="StateMachineExpressSync|StateMachineApiRole" value="PolicyDocument" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontColor=#EA6B66;noEdgeStyle=1;orthogonal=1;" parent="1" source="36" target="33" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="848.4375"/>
+                            <mxPoint x="488" y="990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

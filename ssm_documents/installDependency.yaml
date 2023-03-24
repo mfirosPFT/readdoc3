@@ -1,0 +1,35 @@
+---
+schemaVersion: "2.2"
+description: "Check and install required packages for Python on Linux"
+parameters:
+  pythonVersion:
+    type: String
+    description: "Python version to use (default is 3.8.10)"
+    default: "3.8.10"
+
+mainSteps:
+- name: "CheckPython"
+  action: "aws:runShellScript"
+  precondition:
+    StringEquals:
+    - "platformType"
+    - "Linux"
+  inputs:
+    runCommand:
+    - "#!/bin/sh"
+    - "set -e"
+    - 'python3 --version | grep {{pythonVersion}}'
+    - 'if [ $? -eq 0 ]; then echo "Python {{pythonVersion}} is already installed"; else apt-get update; apt-get install -y python3 python3-pip; fi'
+- name: "CheckBoto3"
+  action: "aws:runShellScript"
+  precondition:
+    StringEquals:
+    - "platformType"
+    - "Linux"
+  inputs:
+    runCommand:
+    - "#!/bin/sh"
+    - "set -e"
+    - 'pip3 list | grep boto3'
+    - 'if [ $? -eq 0 ]; then echo "Boto3 is already installed"; else pip3 install boto3; fi'
+    

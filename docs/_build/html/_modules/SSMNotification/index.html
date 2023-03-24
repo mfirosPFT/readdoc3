@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SSMNotification.index &mdash; DCinema Distribution AWS Resources 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            DCinema Distribution AWS Resources
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../template.html">Cloudformation Template</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Lambda Function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">DCinema Distribution AWS Resources</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">SSMNotification.index</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for SSMNotification.index</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This function is triggered by SNS topic when SSM document execution is completed, failed or timed out.</span>
+<span class="sd">This function will fetch the instance id from the SNS message and fetch the theater details from dynamodb table using instance id.</span>
+<span class="sd">This function will fetch the SSM document execution details from SSM using command id.</span>
+<span class="sd">This function will send an email to the theater email id with the SSM document execution details.</span>
+<span class="sd">This function will store the SSM document execution details in dynamodb table.</span>
+
+<span class="sd">Functions:</span>
+<span class="sd">    - lambda_handler: The main function of the Lambda function. This function is triggered by an SNS topic. The function uses the AWS Systems Manager (SSM) API to query the status of the SSM Agent on the EC2 instances.</span>
+<span class="sd">    - verify_email_identity: Verifies the email identity.</span>
+<span class="sd">    - get_instance_details: Gets the theater details from dynamodb table using instance id.</span>
+<span class="sd">    - get_command_details: Gets the SSM document execution details from SSM using command id.</span>
+<span class="sd">    - send_notification: Sends an email to the theater email id with the SSM document execution details.</span>
+<span class="sd">    - store_status_in_dynamodb: Stores the SSM document execution details in dynamodb table.</span>
+<span class="sd">    - clean_data: Cleans the SSM document execution details.</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">boto3</span>
+<span class="kn">import</span> <span class="nn">botocore</span>
+<span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Logger</span>
+<span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Tracer</span>
+<span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Metrics</span>
+<span class="kn">from</span> <span class="nn">jinja2</span> <span class="kn">import</span> <span class="n">Environment</span><span class="p">,</span> <span class="n">FileSystemLoader</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">pytz</span>
+<span class="c1"># from exit_codes import get_error_message</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">from</span> <span class="nn">email.mime.multipart</span> <span class="kn">import</span> <span class="n">MIMEMultipart</span>
+<span class="kn">from</span> <span class="nn">email.mime.text</span> <span class="kn">import</span> <span class="n">MIMEText</span>
+<span class="kn">from</span> <span class="nn">email.mime.image</span> <span class="kn">import</span> <span class="n">MIMEImage</span>
+
+<span class="c1"># initialize tracer, metrics and loggers</span>
+<span class="n">tracer</span> <span class="o">=</span> <span class="n">Tracer</span><span class="p">()</span>
+<span class="n">metrics</span> <span class="o">=</span> <span class="n">Metrics</span><span class="p">()</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">Logger</span><span class="p">()</span>
+
+<span class="c1"># initialize boto3 client and resource</span>
+<span class="n">dynamodb</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s2">&quot;dynamodb&quot;</span><span class="p">)</span>
+<span class="n">dynamodb_table</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;DYNAMODB_TABLE&#39;</span><span class="p">)</span>
+<span class="c1"># dynamodb_table_index = os.environ.get(&#39;DYNAMODB_TABLE_INDEX&#39;)</span>
+<span class="n">dynamodb_table_index</span> <span class="o">=</span> <span class="s2">&quot;InstanceIdIndex&quot;</span>
+<span class="n">emailfrom</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;EMAIL_FROM&#39;</span><span class="p">)</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">dynamodb</span><span class="o">.</span><span class="n">Table</span><span class="p">(</span><span class="n">dynamodb_table</span><span class="p">)</span>
+<span class="n">ssm_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ssm&quot;</span><span class="p">)</span>
+<span class="n">ses_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ses&quot;</span><span class="p">)</span>
+<span class="n">status_table</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;STATUS_TABLE&#39;</span><span class="p">)</span>
+<span class="n">s3_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;s3&quot;</span><span class="p">)</span>
+<span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">s3_bucket</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;S3_BUCKET&#39;</span><span class="p">)</span>
+<span class="c1"># Read the first image file</span>
+<span class="c1"># with open(&#39;template/images/logo.png&#39;, &#39;rb&#39;) as f1:</span>
+<span class="c1">#     img_data1 = f1.read()</span>
+
+<span class="c1"># # Read the second image file</span>
+<span class="c1"># with open(&#39;template/images/header.png&#39;, &#39;rb&#39;) as f2:</span>
+<span class="c1">#     img_data2 = f2.read()</span>
+
+<span class="c1"># initialize environment variables</span>
+<span class="n">role</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Role&#39;</span><span class="p">)</span>
+<span class="n">documeName</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SSM_DOCUMENT_NAME&#39;</span><span class="p">)</span>
+
+<span class="n">env</span> <span class="o">=</span> <span class="n">Environment</span><span class="p">(</span><span class="n">loader</span><span class="o">=</span><span class="n">FileSystemLoader</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span>
+<span class="n">ist_tz</span> <span class="o">=</span> <span class="n">pytz</span><span class="o">.</span><span class="n">timezone</span><span class="p">(</span><span class="s1">&#39;Asia/Kolkata&#39;</span><span class="p">)</span>
+
+<span class="c1"># function to store status of the SSM document execution in dynamodb table</span>
+
+
+<div class="viewcode-block" id="store_status_in_dynamodb"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.store_status_in_dynamodb">[docs]</a><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">store_status_in_dynamodb</span><span class="p">(</span><span class="n">command_details</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Store the status of the SSM document execution in dynamodb table.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    command_details : dict</span>
+<span class="sd">        SSM document execution details.</span>
+<span class="sd">    theater_id : str</span>
+<span class="sd">        Theater id.</span>
+<span class="sd">    message : dict</span>
+<span class="sd">        SNS message.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bool</span>
+<span class="sd">        True if status is stored in dynamodb table else False.</span>
+<span class="sd">    str</span>
+<span class="sd">        Error message if status is not stored in dynamodb table.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">dtable</span> <span class="o">=</span> <span class="n">dynamodb</span><span class="o">.</span><span class="n">Table</span><span class="p">(</span><span class="n">status_table</span><span class="p">)</span>
+    <span class="n">folder_name</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">,</span> <span class="n">current_time</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">command_id</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">error</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">,</span> <span class="n">source_hash</span><span class="p">,</span> <span class="n">dest_hash</span> <span class="o">=</span> <span class="n">clean_data</span><span class="p">(</span>
+        <span class="n">command_details</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+    <span class="n">created_on</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+    <span class="n">item</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;TheaterId&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span>
+        <span class="s2">&quot;JobId&quot;</span><span class="p">:</span> <span class="n">command_id</span><span class="p">,</span>
+        <span class="s2">&quot;Status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+        <span class="s2">&quot;StartTime&quot;</span><span class="p">:</span> <span class="n">start_time</span><span class="p">,</span>
+        <span class="s2">&quot;CreatedOn&quot;</span><span class="p">:</span> <span class="n">created_on</span><span class="p">,</span>
+        <span class="s2">&quot;FolderName&quot;</span><span class="p">:</span> <span class="n">folder_name</span><span class="p">,</span>
+        <span class="s2">&quot;SourcePath&quot;</span><span class="p">:</span> <span class="n">source_path</span><span class="p">,</span>
+        <span class="s2">&quot;DestinationPath&quot;</span><span class="p">:</span> <span class="n">dest_path</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Success&quot;</span><span class="p">:</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;EndTime&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">end_time</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;Info&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">info</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;Output&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;SourceHash&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">source_hash</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;DestinationHash&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dest_hash</span>
+    <span class="k">elif</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Failed&quot;</span><span class="p">:</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;EndTime&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">end_time</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;Error&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">error</span>
+    <span class="k">elif</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;TimedOut&quot;</span><span class="p">:</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;EndTime&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">current_time</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;Error&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">error</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">&quot;TTL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">created_on</span> <span class="o">+</span> <span class="mi">86400</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">dtable</span><span class="o">.</span><span class="n">put_item</span><span class="p">(</span><span class="n">Item</span><span class="o">=</span><span class="n">item</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">None</span></div>
+
+
+<span class="c1"># def extract_info(text):</span>
+<span class="c1">#     last_line = text.strip().split(&#39;\n&#39;)[-1]</span>
+<span class="c1">#     if last_line[0] == &#39;F&#39;:</span>
+<span class="c1">#         info = last_line.split(&#39;\t&#39;)[-2]</span>
+<span class="c1">#         return info</span>
+<span class="c1">#     return None</span>
+<div class="viewcode-block" id="format_time"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.format_time">[docs]</a><span class="k">def</span> <span class="nf">format_time</span><span class="p">(</span><span class="n">time_sec</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">time_sec</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{:.1f}</span><span class="s1"> seconds&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time_sec</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">time_sec</span> <span class="o">&lt;</span> <span class="mi">3600</span><span class="p">:</span>
+        <span class="nb">min</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time_sec</span> <span class="o">//</span> <span class="mi">60</span><span class="p">)</span>
+        <span class="n">sec</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time_sec</span> <span class="o">%</span> <span class="mi">60</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> minutes </span><span class="si">{}</span><span class="s1"> seconds&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">min</span><span class="p">,</span> <span class="n">sec</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">hour</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time_sec</span> <span class="o">//</span> <span class="mi">3600</span><span class="p">)</span>
+        <span class="nb">min</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">time_sec</span> <span class="o">%</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">//</span> <span class="mi">60</span><span class="p">)</span>
+        <span class="n">sec</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">time_sec</span> <span class="o">%</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">%</span> <span class="mi">60</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> hours </span><span class="si">{}</span><span class="s1"> minutes </span><span class="si">{}</span><span class="s1"> seconds&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hour</span><span class="p">,</span> <span class="nb">min</span><span class="p">,</span> <span class="n">sec</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="extract_info"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.extract_info">[docs]</a><span class="k">def</span> <span class="nf">extract_info</span><span class="p">(</span><span class="n">log</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Total number of files: 40</span>
+        <span class="c1"># Total size of files (in GB): 40.80000000000002</span>
+        <span class="c1"># Total time taken (in seconds): 20568.0</span>
+        <span class="c1"># Best speed (in Mbps): 46.1</span>
+        <span class="c1"># Average speed (in Mbps): 23.575249999999997</span>
+        <span class="c1"># Destination Path: /tmp/DCinema/downloads/TestPackaged40GB</span>
+        <span class="c1"># Source Path: /ldc1/dc-storage/DCinemaTest/TestPackage40GB</span>
+
+        <span class="n">pattern_size</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Total size of files \(in ([A-Za-z]+)\): ([0-9.]+)&#39;</span>
+        <span class="n">pattern_num_files</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Total number of files: (.+)&#39;</span>
+        <span class="n">pattern_time_taken</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Total time taken \(in seconds\): (.+)&#39;</span>
+        <span class="n">pattern_speed</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Best speed \(in Mbps\): (.+)&#39;</span>
+        <span class="n">pattern_avg_speed</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Average speed \(in Mbps\): (.+)&#39;</span>
+        <span class="n">pattern_dest_path</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Destination Path: (.+)&#39;</span>
+        <span class="n">pattern_source_path</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Source Path: (.+)&#39;</span>
+        <span class="n">pattern_source_hash</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Server Key: (.+)&#39;</span>
+        <span class="n">pattern_dest_hash</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Client Key: (.+)&#39;</span>
+
+        <span class="n">size_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_size</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">size_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid log format: cannot extract file size&#39;</span><span class="p">)</span>
+        <span class="n">num_files_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_num_files</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num_files_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Invalid log format: cannot extract number of files&#39;</span><span class="p">)</span>
+
+        <span class="n">time_taken_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_time_taken</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">time_taken_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid log format: cannot extract time taken&#39;</span><span class="p">)</span>
+        <span class="n">speed_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_speed</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">speed_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid log format: cannot extract best speed&#39;</span><span class="p">)</span>
+        <span class="n">avg_speed_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_avg_speed</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">avg_speed_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Invalid log format: cannot extract average speed&#39;</span><span class="p">)</span>
+        <span class="n">source_path_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_source_path</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">source_path_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Invalid log format: cannot extract source path&#39;</span><span class="p">)</span>
+        <span class="n">dest_path_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_dest_path</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dest_path_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Invalid log format: cannot extract destination path&#39;</span><span class="p">)</span>
+        <span class="n">source_hash_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_source_hash</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">source_hash_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Invalid log format: cannot extract source hash&#39;</span><span class="p">)</span>
+        <span class="n">dest_hash_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_dest_hash</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dest_hash_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Invalid log format: cannot extract destination hash&#39;</span><span class="p">)</span>
+
+        <span class="n">size_unit</span> <span class="o">=</span> <span class="n">size_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">size_val</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">size_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">size_unit</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;kb&#39;</span><span class="p">:</span>
+            <span class="n">size_val</span> <span class="o">/=</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span>
+        <span class="k">elif</span> <span class="n">size_unit</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;mb&#39;</span><span class="p">:</span>
+            <span class="n">size_val</span> <span class="o">/=</span> <span class="mi">1024</span>
+        <span class="k">elif</span> <span class="n">size_unit</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;gb&#39;</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">num_files</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num_files_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">time_taken</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time_taken_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">speed</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">speed_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">avg_speed</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">avg_speed_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">source_path</span> <span class="o">=</span> <span class="n">source_path_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">dest_path</span> <span class="o">=</span> <span class="n">dest_path_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">source_hash</span> <span class="o">=</span> <span class="n">source_hash_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">dest_hash</span> <span class="o">=</span> <span class="n">dest_hash_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">size_val</span><span class="p">,</span> <span class="n">num_files</span><span class="p">,</span> <span class="n">time_taken</span><span class="p">,</span> <span class="n">speed</span><span class="p">,</span> <span class="n">avg_speed</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">,</span> <span class="n">source_hash</span><span class="p">,</span> <span class="n">dest_hash</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="clean_data"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.clean_data">[docs]</a><span class="k">def</span> <span class="nf">clean_data</span><span class="p">(</span><span class="n">command_details</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Clean the SSM document execution details.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    command_details : dict</span>
+<span class="sd">        SSM document execution details.</span>
+<span class="sd">    message : dict</span>
+<span class="sd">        SNS message.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        Folder name.</span>
+<span class="sd">    str</span>
+<span class="sd">        Info.</span>
+<span class="sd">    str</span>
+<span class="sd">        Start time.</span>
+<span class="sd">    str</span>
+<span class="sd">        End time.</span>
+<span class="sd">    str</span>
+<span class="sd">        Current time.</span>
+<span class="sd">    str</span>
+<span class="sd">        Status.</span>
+<span class="sd">    str</span>
+<span class="sd">        Command id.</span>
+<span class="sd">    str</span>
+<span class="sd">        Output.</span>
+<span class="sd">    str</span>
+<span class="sd">        Error.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; clean_data(command_details, message)</span>
+<span class="sd">    (&#39;folder_name&#39;, &#39;info&#39;, &#39;start_time&#39;, &#39;end_time&#39;, &#39;current_time&#39;, &#39;status&#39;, &#39;command_id&#39;, &#39;output&#39;, &#39;error&#39;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">folder_name</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">end_time</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">source_path</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">dest_path</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">source_hash</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">dest_hash</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">command_details</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span>
+    <span class="n">comments</span> <span class="o">=</span> <span class="n">command_details</span><span class="p">[</span><span class="s2">&quot;Comment&quot;</span><span class="p">]</span>
+    <span class="n">error</span> <span class="o">=</span> <span class="n">command_details</span><span class="p">[</span><span class="s2">&quot;StandardErrorContent&quot;</span><span class="p">]</span>
+
+    <span class="n">status</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span>
+    <span class="n">command_id</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;commandId&quot;</span><span class="p">]</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;requestedDateTime&quot;</span><span class="p">]</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span>
+        <span class="n">start_time</span><span class="p">,</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%S.</span><span class="si">%f</span><span class="s2">Z&quot;</span><span class="p">)</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">start_time</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="n">pytz</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span>
+        <span class="n">ist_tz</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %I:%M:%S %p %Z&quot;</span><span class="p">)</span>
+    <span class="c1"># Get the current UTC time</span>
+    <span class="n">now_utc</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+    <span class="c1"># Convert UTC time to Indian Standard Time</span>
+
+    <span class="n">now_ist</span> <span class="o">=</span> <span class="n">pytz</span><span class="o">.</span><span class="n">utc</span><span class="o">.</span><span class="n">localize</span><span class="p">(</span><span class="n">now_utc</span><span class="p">)</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">ist_tz</span><span class="p">)</span>
+    <span class="n">current_time</span> <span class="o">=</span> <span class="n">now_ist</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %I:%M:%S %p %Z&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">command_details</span><span class="p">[</span><span class="s2">&quot;ExecutionEndDateTime&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">command_details</span><span class="p">[</span><span class="s2">&quot;ExecutionEndDateTime&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">command_details</span><span class="p">[</span><span class="s2">&quot;ExecutionEndDateTime&quot;</span><span class="p">]</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span>
+            <span class="n">end_time</span><span class="p">,</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%S.</span><span class="si">%f</span><span class="s2">Z&quot;</span><span class="p">)</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">end_time</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="n">pytz</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span>
+            <span class="n">ist_tz</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %I:%M:%S %p %Z&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">output</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span> <span class="ow">and</span> <span class="n">output</span> <span class="o">!=</span> <span class="s2">&quot; &quot;</span><span class="p">:</span>
+        <span class="c1"># print(output)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">extract_info</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">source_path</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+        <span class="n">dest_path</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span>
+        <span class="n">source_hash</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span>
+        <span class="n">dest_hash</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="s2">&quot;Total size of files: </span><span class="si">{:.2f}</span><span class="s2"> GB, Total number of files: </span><span class="si">{}</span><span class="s2">, Total time taken: </span><span class="si">{}</span><span class="s2">, Best speed: </span><span class="si">{:.2f}</span><span class="s2"> Mbps, Average speed: </span><span class="si">{:.2f}</span><span class="s2"> Mbps&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">format_time</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="n">data</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="s2">&quot;No information available&quot;</span>
+
+    <span class="k">if</span> <span class="n">comments</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span> <span class="ow">and</span> <span class="n">comments</span> <span class="o">!=</span> <span class="s2">&quot; &quot;</span><span class="p">:</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Copy from (\S+) to&#39;</span><span class="p">,</span> <span class="n">comments</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+            <span class="n">folder_name</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">folder_name</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">,</span> <span class="n">current_time</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">command_id</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">error</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">,</span> <span class="n">source_hash</span><span class="p">,</span> <span class="n">dest_hash</span></div>
+
+
+<span class="c1"># function to fetch instance id from dynamodb table using theater_id and return instance id for each theater</span>
+
+
+<div class="viewcode-block" id="get_instance_details"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.get_instance_details">[docs]</a><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_instance_details</span><span class="p">(</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">table</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fetch instance id from dynamodb table using theater_id and return instance id for each theater.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    instance_id : str</span>
+<span class="sd">        Instance id.</span>
+<span class="sd">    table : str</span>
+<span class="sd">        DynamoDB table name.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list</span>
+<span class="sd">        List of instance ids.</span>
+<span class="sd">    str</span>
+<span class="sd">        Error message if instance id is not fetched from dynamodb table.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+            <span class="n">TableName</span><span class="o">=</span><span class="n">dynamodb_table</span><span class="p">,</span>
+            <span class="n">IndexName</span><span class="o">=</span><span class="n">dynamodb_table_index</span><span class="p">,</span>
+            <span class="n">KeyConditionExpression</span><span class="o">=</span><span class="s2">&quot;InstanceId  = :instance_id&quot;</span><span class="p">,</span>
+            <span class="n">ExpressionAttributeValues</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;:instance_id&quot;</span><span class="p">:</span> <span class="n">instance_id</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;theater_id&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;Items&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;TheaterId&quot;</span><span class="p">])</span>
+        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;theater_name&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;Items&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;TheaterName&quot;</span><span class="p">])</span>
+        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;theater_email&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;Items&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;TheaterEmail&quot;</span><span class="p">])</span>
+    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Items&quot;</span><span class="p">],</span> <span class="kc">None</span></div>
+
+
+<span class="c1"># function to fetch command details from SSM run command history using command id</span>
+<div class="viewcode-block" id="get_command_details"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.get_command_details">[docs]</a><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_command_details</span><span class="p">(</span><span class="n">command_id</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">,</span> <span class="n">ssm_client</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fetch command details from SSM run command history using command id.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    command_id : str</span>
+<span class="sd">        Command id.</span>
+<span class="sd">    instance_id : str</span>
+<span class="sd">        Instance id.</span>
+<span class="sd">    ssm_client : boto3.client</span>
+<span class="sd">        SSM client.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        SSM command details.</span>
+<span class="sd">    str</span>
+<span class="sd">        Error message if command details are not fetched from SSM run command history.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">get_command_invocation</span><span class="p">(</span>
+            <span class="n">CommandId</span><span class="o">=</span><span class="n">command_id</span><span class="p">,</span>
+            <span class="n">InstanceId</span><span class="o">=</span><span class="n">instance_id</span>
+        <span class="p">)</span>
+
+        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;command_id&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;CommandId&quot;</span><span class="p">])</span>
+        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">])</span>
+        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;detailed_status&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;StatusDetails&quot;</span><span class="p">])</span>
+        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">])</span>
+        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;StandardErrorContent&quot;</span><span class="p">])</span>
+    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span><span class="p">,</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="download_csv"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.download_csv">[docs]</a><span class="k">def</span> <span class="nf">download_csv</span><span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">s3_client</span><span class="o">.</span><span class="n">get_object</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">,</span> <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">csv_content</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Body&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="n">csv_file</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">csv_content</span><span class="p">)</span>
+        <span class="n">csv_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">)</span>
+
+        <span class="c1"># Modify the CSV by extracting only the last folder and the filename</span>
+        <span class="n">modified_csv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">csv_reader</span><span class="p">:</span>
+            <span class="n">path_parts</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">path_parts</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">path_parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">path_parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">modified_row</span> <span class="o">=</span> <span class="p">[</span><span class="n">filename</span><span class="p">,</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+            <span class="n">modified_csv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">modified_row</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">modified_csv</span>
+    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span></div>
+
+
+<span class="c1"># function to send notification to the user using SNS topic</span>
+
+
+<div class="viewcode-block" id="send_notification"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.send_notification">[docs]</a><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">send_notification</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">theaterName</span><span class="p">,</span> <span class="n">command_details</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Send notification to the user using SES.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    email : str</span>
+<span class="sd">        Email address.</span>
+
+<span class="sd">    theaterName : str</span>
+<span class="sd">        Theater name.</span>
+
+<span class="sd">    command_details : dict</span>
+<span class="sd">        SSM command details.</span>
+
+<span class="sd">    message : dict</span>
+<span class="sd">        SSM command message.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        SNS response.</span>
+<span class="sd">    str</span>
+<span class="sd">        Error message if notification is not sent.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">folder_name</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">,</span> <span class="n">current_time</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">command_id</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">error</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">,</span> <span class="n">source_hash</span><span class="p">,</span> <span class="n">dest_hash</span> <span class="o">=</span> <span class="n">clean_data</span><span class="p">(</span>
+        <span class="n">command_details</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+    <span class="c1"># extract date from start time in format YYYY-MM-DD</span>
+    <span class="n">date</span> <span class="o">=</span> <span class="n">start_time</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">template</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">client_csv</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">server_csv</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;Success&#39;</span><span class="p">:</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">get_template</span><span class="p">(</span><span class="s1">&#39;template/email_template_success.html&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Download the client and server CSV files from S3</span>
+        <span class="n">client_csv</span> <span class="o">=</span> <span class="n">download_csv</span><span class="p">(</span><span class="n">s3_bucket</span><span class="p">,</span> <span class="n">source_hash</span><span class="p">)</span>
+        <span class="n">server_csv</span> <span class="o">=</span> <span class="n">download_csv</span><span class="p">(</span><span class="n">s3_bucket</span><span class="p">,</span> <span class="n">dest_hash</span><span class="p">)</span>
+
+        <span class="n">logMsg</span> <span class="o">=</span> <span class="s2">&quot;Success on &quot;</span> <span class="o">+</span> <span class="n">theaterName</span> <span class="o">+</span> <span class="s2">&quot;  &quot;</span> <span class="o">+</span> <span class="n">info</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">command_id</span><span class="o">=</span><span class="n">command_id</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">theaterName</span><span class="o">=</span><span class="n">theaterName</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">source_path</span><span class="o">=</span><span class="n">source_path</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">dest_path</span><span class="o">=</span><span class="n">dest_path</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">logMsg</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">get_template</span><span class="p">(</span><span class="s1">&#39;template/email_template.html&#39;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">command_id</span><span class="o">=</span><span class="n">command_id</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">theaterName</span><span class="o">=</span><span class="n">theaterName</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">)</span>
+    <span class="n">html</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">theaterName</span><span class="o">=</span><span class="n">theaterName</span><span class="p">,</span> <span class="n">folder_name</span><span class="o">=</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span> <span class="n">info</span><span class="o">=</span><span class="n">info</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">,</span>
+                           <span class="n">command_id</span><span class="o">=</span><span class="n">command_id</span><span class="p">,</span> <span class="n">start_time</span><span class="o">=</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="o">=</span><span class="n">end_time</span><span class="p">,</span> <span class="n">current_time</span><span class="o">=</span><span class="n">current_time</span><span class="p">)</span>
+
+    <span class="c1"># Create a MIME multipart message object</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">MIMEMultipart</span><span class="p">()</span>
+    <span class="n">html_part</span> <span class="o">=</span> <span class="n">MIMEText</span><span class="p">(</span><span class="n">html</span><span class="p">,</span> <span class="s1">&#39;html&#39;</span><span class="p">)</span>
+    <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">html_part</span><span class="p">)</span>
+
+    <span class="c1"># Add the first image as an attachment to the message object</span>
+    <span class="n">img_part1</span> <span class="o">=</span> <span class="n">MIMEImage</span><span class="p">(</span><span class="n">img_data1</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;logo.png&#39;</span><span class="p">)</span>
+    <span class="n">img_part1</span><span class="o">.</span><span class="n">add_header</span><span class="p">(</span><span class="s1">&#39;Content-Disposition&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;attachment&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;logo.png&#39;</span><span class="p">)</span>
+    <span class="n">img_part1</span><span class="o">.</span><span class="n">add_header</span><span class="p">(</span><span class="s1">&#39;Content-ID&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;logo&gt;&#39;</span><span class="p">)</span>
+    <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">img_part1</span><span class="p">)</span>
+
+    <span class="c1"># Add the second image as an attachment to the message object</span>
+    <span class="n">img_part2</span> <span class="o">=</span> <span class="n">MIMEImage</span><span class="p">(</span><span class="n">img_data2</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;header.png&#39;</span><span class="p">)</span>
+    <span class="n">img_part2</span><span class="o">.</span><span class="n">add_header</span><span class="p">(</span><span class="s1">&#39;Content-Disposition&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;attachment&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;header.png&#39;</span><span class="p">)</span>
+    <span class="n">img_part2</span><span class="o">.</span><span class="n">add_header</span><span class="p">(</span><span class="s1">&#39;Content-ID&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;header&gt;&#39;</span><span class="p">)</span>
+    <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">img_part2</span><span class="p">)</span>
+
+    <span class="c1"># attach both csv files to the email</span>
+    <span class="k">if</span> <span class="n">client_csv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">server_csv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># join rows with &#39;,&#39; and lines with &#39;\r&#39;</span>
+        <span class="n">client_csv_str</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">client_csv</span><span class="p">])</span>
+        <span class="n">server_csv_str</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">server_csv</span><span class="p">])</span>
+
+        <span class="c1"># create MIMEText objects with the CSV data</span>
+        <span class="n">csv_part1</span> <span class="o">=</span> <span class="n">MIMEText</span><span class="p">(</span><span class="n">client_csv_str</span><span class="p">,</span> <span class="n">_subtype</span><span class="o">=</span><span class="s1">&#39;csv&#39;</span><span class="p">)</span>
+        <span class="n">csv_part1</span><span class="o">.</span><span class="n">add_header</span><span class="p">(</span><span class="s1">&#39;Content-Disposition&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;attachment&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;client-hash.csv&#39;</span><span class="p">)</span>
+
+        <span class="n">csv_part2</span> <span class="o">=</span> <span class="n">MIMEText</span><span class="p">(</span><span class="n">server_csv_str</span><span class="p">,</span> <span class="n">_subtype</span><span class="o">=</span><span class="s1">&#39;csv&#39;</span><span class="p">)</span>
+        <span class="n">csv_part2</span><span class="o">.</span><span class="n">add_header</span><span class="p">(</span><span class="s1">&#39;Content-Disposition&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;attachment&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;server-hash.csv&#39;</span><span class="p">)</span>
+
+        <span class="c1"># attach MIMEText objects to the email message</span>
+        <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">csv_part1</span><span class="p">)</span>
+        <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">csv_part2</span><span class="p">)</span>
+
+    <span class="n">subject</span> <span class="o">=</span> <span class="s2">&quot;DCP Delivery Status for &quot;</span> <span class="o">+</span> <span class="n">theaterName</span> <span class="o">+</span> <span class="s2">&quot; - &quot;</span> <span class="o">+</span> <span class="n">status</span>
+    <span class="n">msg</span><span class="p">[</span><span class="s1">&#39;Subject&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">subject</span>
+    <span class="n">msg</span><span class="p">[</span><span class="s1">&#39;From&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;DCinema Distribution Status &lt;&quot;</span> <span class="o">+</span> <span class="n">emailfrom</span> <span class="o">+</span> <span class="s2">&quot;&gt;&quot;</span>
+    <span class="n">msg</span><span class="p">[</span><span class="s1">&#39;To&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">email</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">ses_client</span><span class="o">.</span><span class="n">send_raw_email</span><span class="p">(</span>
+            <span class="n">Source</span><span class="o">=</span><span class="n">emailfrom</span><span class="p">,</span>
+            <span class="n">Destinations</span><span class="o">=</span><span class="p">[</span><span class="n">email</span><span class="p">],</span>
+            <span class="n">RawMessage</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Data&#39;</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">as_string</span><span class="p">()}</span>
+        <span class="p">)</span>
+    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span><span class="p">,</span> <span class="kc">None</span></div>
+
+
+<span class="c1"># SES , create new using the environment variable EMAIL_FROM if not present. Else, use the existing one.</span>
+<div class="viewcode-block" id="verify_email_identity"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.verify_email_identity">[docs]</a><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">verify_email_identity</span><span class="p">(</span><span class="n">email_from</span><span class="p">,</span> <span class="n">ses_client</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    SES , create new using the environment variable EMAIL_FROM if not present. Else, use the existing one.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    email_from : str</span>
+<span class="sd">        Email address.</span>
+
+<span class="sd">    ses_client : boto3.client</span>
+<span class="sd">        SES client.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        Email address.</span>
+<span class="sd">    str</span>
+<span class="sd">        Error message if email address is not verified.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">ses_client</span><span class="o">.</span><span class="n">list_identities</span><span class="p">(</span>
+            <span class="n">IdentityType</span><span class="o">=</span><span class="s1">&#39;EmailAddress&#39;</span><span class="p">,</span>
+            <span class="n">MaxItems</span><span class="o">=</span><span class="mi">123</span>
+        <span class="p">)</span>
+        <span class="c1"># check if the email address is already exists in the SES, if not then create new one using the environment variable EMAIL_FROM, else use the existing one return email from.</span>
+        <span class="k">if</span> <span class="n">email_from</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Identities&quot;</span><span class="p">]:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">ses_client</span><span class="o">.</span><span class="n">verify_email_identity</span><span class="p">(</span>
+                <span class="n">EmailAddress</span><span class="o">=</span><span class="n">email_from</span>
+            <span class="p">)</span>
+            <span class="c1"># wait for the email to be verified</span>
+            <span class="n">ses_client</span><span class="o">.</span><span class="n">get_identity_verification_attributes</span><span class="p">(</span>
+                <span class="n">Identities</span><span class="o">=</span><span class="p">[</span><span class="n">email_from</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">email_from</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">email_from</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">)</span></div>
+
+
+<span class="c1"># lambda handler function</span>
+<div class="viewcode-block" id="lambda_handler"><a class="viewcode-back" href="../../SSMNotification.html#SSMNotification.index.lambda_handler">[docs]</a><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_lambda_handler</span>
+<span class="k">def</span> <span class="nf">lambda_handler</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Lambda handler function.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    event : dict</span>
+<span class="sd">        Event data.</span>
+
+<span class="sd">    context : object</span>
+<span class="sd">        Lambda Context runtime methods and attributes.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Response.</span>
+<span class="sd">    str</span>
+<span class="sd">        Error message if any.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># fetch instance id from event</span>
+    <span class="c1"># fetch command id from event which is an SNSEvent, the body of the event is a json string{&quot;commandId&quot;:&quot;7463d40e-a888-4a09-96da-ed0f42773554&quot;,&quot;documentName&quot;:&quot;DCinema-SSMDocument-tNyLEG2ZHRZy&quot;,&quot;instanceId&quot;:&quot;mi-076b2425febe0914e&quot;,&quot;requestedDateTime&quot;:&quot;2023-02-20T13:22:47.378Z&quot;,&quot;status&quot;:&quot;InProgress&quot;,&quot;detailedStatus&quot;:&quot;InProgress&quot;,&quot;eventTime&quot;:&quot;2023-02-20T13:22:47.406Z&quot;}</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s2">&quot;Records&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;Sns&quot;</span><span class="p">][</span><span class="s2">&quot;Message&quot;</span><span class="p">])</span>
+    <span class="n">instance_id</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;instanceId&quot;</span><span class="p">]</span>
+    <span class="n">command_id</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;commandId&quot;</span><span class="p">]</span>
+    <span class="c1"># add to dynamodb table</span>
+
+    <span class="c1"># verify email from SES</span>
+    <span class="n">email_from</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">verify_email_identity</span><span class="p">(</span><span class="n">emailfrom</span><span class="p">,</span> <span class="n">ses_client</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">error</span>
+
+    <span class="c1"># fetch theater details from dynamodb table using instance id</span>
+    <span class="n">theater_details</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">get_instance_details</span><span class="p">(</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">table</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">error</span>
+
+    <span class="c1"># use command id to fetch command details from SSM run command history</span>
+    <span class="n">command_details</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">get_command_details</span><span class="p">(</span>
+        <span class="n">command_id</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">,</span> <span class="n">ssm_client</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">error</span>
+    <span class="c1"># store the command details in dynamodb table</span>
+
+    <span class="c1"># use theater email id to send notification to the user, with the status of the SSM document execution output</span>
+    <span class="n">theaterName</span> <span class="o">=</span> <span class="n">theater_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;TheaterName&quot;</span><span class="p">]</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="n">theater_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;TheaterEmail&quot;</span><span class="p">]</span>
+    <span class="n">theater_id</span> <span class="o">=</span> <span class="n">theater_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;TheaterId&quot;</span><span class="p">]</span>
+    <span class="n">res</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">store_status_in_dynamodb</span><span class="p">(</span><span class="n">command_details</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">error</span>
+    <span class="n">response</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">send_notification</span><span class="p">(</span>
+        <span class="n">email</span><span class="p">,</span> <span class="n">theaterName</span><span class="p">,</span> <span class="n">command_details</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">error</span>
+    <span class="k">return</span> <span class="n">response</span><span class="p">,</span> <span class="kc">None</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Prime Focus.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

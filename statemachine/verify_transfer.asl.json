@@ -1,0 +1,18 @@
+{
+    "Comment": "A description of my state machine",
+    "StartAt": "DynamoDB GetItem",
+    "States": {
+      "DynamoDB GetItem": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::dynamodb:getItem",
+        "Parameters": {
+          "TableName": "DCinema-TheaterTable",
+          "Key": {
+            "TheaterId": {
+              "S": "PFT-PVR-001"
+            }
+          }
+        },
+        "ResultSelector": {
+            
+        
