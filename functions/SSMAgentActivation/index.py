@@ -28,15 +28,15 @@ logger = Logger()
 
 # initialize boto3 client and resource
 ssm_client = boto3.client("ssm", region_name=os.environ.get('AWS_REGION'))
-dynamodb = boto3.resource("dynamodb", region_name=os.environ.get('AWS_REGION')
+dynamodb = boto3.resource("dynamodb", region_name=os.environ.get('AWS_REGION'))
 
 # initialize environment variables
-region=os.environ.get('AWS_REGION')
-role=os.environ.get('SSM_ROLE')
-dynamodb_table=os.environ.get('DYNAMODB_TABLE_ACTIVATIONS')
-project=os.environ.get('PROJECT_NAME')
-parameter=os.environ.get('SSM_PARAMETER')
-install_dependencies=os.environ.get('INSTALL_DEPENDENCIES')
+region = os.environ.get('AWS_REGION')
+role = os.environ.get('SSM_ROLE')
+dynamodb_table = os.environ.get('DYNAMODB_TABLE_ACTIVATIONS')
+project = os.environ.get('PROJECT_NAME')
+parameter = os.environ.get('SSM_PARAMETER')
+install_dependencies = os.environ.get('INSTALL_DEPENDENCIES')
 
 
 @ tracer.capture_method(capture_response=False)
@@ -54,7 +54,7 @@ def install_deps(instance_id):
         >>> response = install_deps(instance_id)
     """
     try:
-        response=ssm_client.send_command(
+        response = ssm_client.send_command(
             InstanceIds=[instance_id],
             DocumentName=install_dependencies,
             DocumentVersion="$LATEST",
@@ -83,7 +83,7 @@ def create_activation(registration_limit):
     """
 
     try:
-        response=ssm_client.create_activation(
+        response = ssm_client.create_activation(
             Description="ExpeDat SSM Agent Activation",
             DefaultInstanceName="TheaterBoxDCinema",
             IamRole=role,
@@ -115,7 +115,7 @@ def update_ssm(activation_code, activation_id, count, registration_limit, expira
         >>> response = update_ssm(activation_code, activation_id, count, registration_limit, expiration)
     """
     try:
-        response=ssm_client.put_parameter(
+        response = ssm_client.put_parameter(
             Name=parameter,
             Value=json.dumps({
                 "ActivationId": activation_id,
@@ -149,7 +149,7 @@ def add_tags(instance_id, theater_id, theater_name, theater_email):
         >>> response = add_tags(instance_id, theater_id)
     """
     try:
-        response=ssm_client.add_tags_to_resource(
+        response = ssm_client.add_tags_to_resource(
             ResourceType="ManagedInstance",
             ResourceId=instance_id,
             Tags=[
@@ -198,9 +198,9 @@ def update_table(theater_id, theater_name, theater_email, instance_id):
         >>> response = add_tags(instance_id, theater_id, theater_name, theater_email)
     """
     try:
-        table=dynamodb.Table(os.environ.get('DYNAMODB_TABLE_THEATER'))
+        table = dynamodb.Table(os.environ.get('DYNAMODB_TABLE_THEATER'))
 
-        response=table.put_item(
+        response = table.put_item(
             Item={
                 'TheaterId': theater_id,
                 'TheaterName': theater_name,
@@ -229,14 +229,14 @@ def get_activation_code_id():
         >>> activation_code, activation_id = get_activation_code_id()
     """
     try:
-        response=ssm_client.get_parameter(
+        response = ssm_client.get_parameter(
             Name=parameter,
             WithDecryption=False
         )
-        item=json.loads(response["Parameter"]["Value"])
-        count=item.get("ActiveCount", 0) + 1
-        registration_limit=item["RegistrationLimit"]
-        expiration_date=datetime.strptime(
+        item = json.loads(response["Parameter"]["Value"])
+        count = item.get("ActiveCount", 0) + 1
+        registration_limit = item["RegistrationLimit"]
+        expiration_date = datetime.strptime(
             item["Expiration"], '%Y-%m-%d').date()
         if expiration_date > datetime.now().date():
             if count < registration_limit:
@@ -255,18 +255,18 @@ def get_activation_code_id():
                 logger.info("Updated ActiveCount in ssm parameter")
                 return item["ActivationCode"], item["ActivationId"]
             else:
-                activation_code, activation_id=create_activation(
+                activation_code, activation_id = create_activation(
                     registration_limit)
-                expiration=(datetime.now() +
+                expiration = (datetime.now() +
                               timedelta(days=28)).strftime("%Y-%m-%d")
                 update_ssm(activation_code, activation_id,
                            0, registration_limit, expiration)
                 logger.info("Created new activation code and id")
                 return activation_code, activation_id
         else:
-            activation_code, activation_id=create_activation(
+            activation_code, activation_id = create_activation(
                 registration_limit)
-            expiration=(datetime.now() + timedelta(days=28)
+            expiration = (datetime.now() + timedelta(days=28)
                           ).strftime("%Y-%m-%d")
             update_ssm(activation_code, activation_id,
                        0, registration_limit, expiration)
@@ -293,25 +293,25 @@ def lambda_handler(event: dict, context: LambdaContext):
     """
 
     # check api path to see if the request is for activation code and id or to add theater id as tags to the instance
-    event_path=event["path"]
+    event_path = event["path"]
     if event_path == "/addtags":
         # add theater id as tags to the instance
-        body=json.loads(event["body"])
-        instance_id=body["machine_id"]
-        theater_id=body["theater_id"]
-        theater_name=body["theater_name"]
-        theater_email=body["theater_email"]
+        body = json.loads(event["body"])
+        instance_id = body["machine_id"]
+        theater_id = body["theater_id"]
+        theater_name = body["theater_name"]
+        theater_email = body["theater_email"]
         try:
-            tag_response=add_tags(instance_id, theater_id,
+            tag_response = add_tags(instance_id, theater_id,
                                     theater_name, theater_email)
             logger.info("Added tags to the instance")
 
             # add theater id, name and instance id to dynamodb table
-            table_response=update_table(
+            table_response = update_table(
                 theater_id, theater_name, theater_email, instance_id)
 
             # run install dependencies ssm run document on the instance
-            ssm_response=install_deps(instance_id)
+            ssm_response = install_deps(instance_id)
             logger.info("Ran install dependencies ssm run document")
 
             return {
@@ -337,7 +337,7 @@ def lambda_handler(event: dict, context: LambdaContext):
 
     # get activation code and id
     elif event_path == "/ssmactivation":
-        activation_code, activation_id=get_activation_code_id()
+        activation_code, activation_id = get_activation_code_id()
         return {
             "statusCode": 200,
             "body": json.dumps(
