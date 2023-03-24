@@ -11,6 +11,15 @@ Main module
    :undoc-members:
    :show-inheritance:
 
+Code
+-------
+This section defines the code that is used.
+
+.. literalinclude:: ../functions/SSMInstallScriptGenerator/index.py
+   :language: python
+   :linenos:
+
+
 Sample module
 ---------------------------------------
 
@@ -18,3 +27,4 @@ Sample module
    :members:
    :undoc-members:
    :show-inheritance:
+

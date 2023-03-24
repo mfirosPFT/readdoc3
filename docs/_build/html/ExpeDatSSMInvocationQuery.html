@@ -46,7 +46,10 @@
 <li class="toctree-l1"><a class="reference internal" href="template.html">Cloudformation Template</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="modules.html">Lambda Function</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="ExpeDatSSMRunDocumet.html">ExpeDatSSMRunDocumet Documentation</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">ExpeDatSSMInvocationQuery Documentation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">ExpeDatSSMInvocationQuery Documentation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#code">Code</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="SSMNotification.html">SSMNotification Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="DashboardFunction.html">DashboardFunction Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="CustomAuthorizer.html">CustomAuthorizer Documentation</a></li>
@@ -230,6 +233,381 @@
 </div>
 </dd></dl>
 
+<section id="code">
+<h2>Code<a class="headerlink" href="#code" title="Permalink to this headline"></a></h2>
+<p>This section defines the code that is used to query the SSM run command invocation data.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos">  1</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">  2</span><span class="sd">Lambda function for the ExpeDatSSMInvocationQuery function. This function is used to query the status of the ExpeDat DCP transfer on the Theater Box&#39;s. The function is triggered by an API Gateway endpoint. The function uses the AWS Systems Manager (SSM) API to query the status of the SSM Agent on the managed instances.</span>
+<span class="linenos">  3</span>
+<span class="linenos">  4</span><span class="sd">Functions:</span>
+<span class="linenos">  5</span><span class="sd">    - lambda_handler: The main function of the Lambda function. This function is triggered by an API Gateway endpoint. The function uses the AWS Systems Manager (SSM) API to query the status of the SSM Agent on the managed instances.</span>
+<span class="linenos">  6</span><span class="sd">    - extract_info: Extracts the info from the output of the command invocation.</span>
+<span class="linenos">  7</span><span class="sd">    - retry_with_backoff: Retries a function with exponential backoff.</span>
+<span class="linenos">  8</span><span class="sd">    - get_instance_id: Gets the instance id of the managed instance.</span>
+<span class="linenos">  9</span><span class="sd">    - get_connection_status: Gets the connection status of the theater box.</span>
+<span class="linenos"> 10</span>
+<span class="linenos"> 11</span><span class="sd">    </span>
+<span class="linenos"> 12</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 13</span>
+<span class="linenos"> 14</span><span class="kn">import</span> <span class="nn">boto3</span>
+<span class="linenos"> 15</span><span class="kn">import</span> <span class="nn">botocore</span>
+<span class="linenos"> 16</span><span class="kn">import</span> <span class="nn">json</span>
+<span class="linenos"> 17</span><span class="kn">import</span> <span class="nn">os</span>
+<span class="linenos"> 18</span><span class="kn">import</span> <span class="nn">re</span>
+<span class="linenos"> 19</span><span class="kn">import</span> <span class="nn">time</span>
+<span class="linenos"> 20</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Tracer</span>
+<span class="linenos"> 21</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Metrics</span>
+<span class="linenos"> 22</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools.metrics</span> <span class="kn">import</span> <span class="n">MetricUnit</span>
+<span class="linenos"> 23</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools.utilities.typing</span> <span class="kn">import</span> <span class="n">LambdaContext</span>
+<span class="linenos"> 24</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Logger</span>
+<span class="linenos"> 25</span><span class="c1"># from progress import extract_info_progress as extract_info_progress</span>
+<span class="linenos"> 26</span><span class="c1"># from exit_codes import get_error_message</span>
+<span class="linenos"> 27</span><span class="n">tracer</span> <span class="o">=</span> <span class="n">Tracer</span><span class="p">()</span>
+<span class="linenos"> 28</span><span class="n">metrics</span> <span class="o">=</span> <span class="n">Metrics</span><span class="p">()</span>
+<span class="linenos"> 29</span>
+<span class="linenos"> 30</span><span class="n">logger</span> <span class="o">=</span> <span class="n">Logger</span><span class="p">()</span>
+<span class="linenos"> 31</span>
+<span class="linenos"> 32</span><span class="n">ssm_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ssm&quot;</span><span class="p">)</span>
+<span class="linenos"> 33</span><span class="n">dynamodb</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s2">&quot;dynamodb&quot;</span><span class="p">)</span>
+<span class="linenos"> 34</span><span class="n">tableName</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;DYNAMODB_TABLE&#39;</span><span class="p">)</span>
+<span class="linenos"> 35</span><span class="n">table</span> <span class="o">=</span> <span class="n">dynamodb</span><span class="o">.</span><span class="n">Table</span><span class="p">(</span><span class="n">tableName</span><span class="p">)</span>
+<span class="linenos"> 36</span>
+<span class="linenos"> 37</span><span class="c1"># helper function</span>
+<span class="linenos"> 38</span>
+<span class="linenos"> 39</span>
+<span class="linenos"> 40</span><span class="k">def</span> <span class="nf">format_time</span><span class="p">(</span><span class="n">time_sec</span><span class="p">):</span>
+<span class="linenos"> 41</span>    <span class="k">if</span> <span class="n">time_sec</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">:</span>
+<span class="linenos"> 42</span>        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{:.1f}</span><span class="s1"> seconds&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time_sec</span><span class="p">)</span>
+<span class="linenos"> 43</span>    <span class="k">elif</span> <span class="n">time_sec</span> <span class="o">&lt;</span> <span class="mi">3600</span><span class="p">:</span>
+<span class="linenos"> 44</span>        <span class="nb">min</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time_sec</span> <span class="o">//</span> <span class="mi">60</span><span class="p">)</span>
+<span class="linenos"> 45</span>        <span class="n">sec</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time_sec</span> <span class="o">%</span> <span class="mi">60</span><span class="p">)</span>
+<span class="linenos"> 46</span>        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> minutes </span><span class="si">{}</span><span class="s1"> seconds&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">min</span><span class="p">,</span> <span class="n">sec</span><span class="p">)</span>
+<span class="linenos"> 47</span>    <span class="k">else</span><span class="p">:</span>
+<span class="linenos"> 48</span>        <span class="n">hour</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time_sec</span> <span class="o">//</span> <span class="mi">3600</span><span class="p">)</span>
+<span class="linenos"> 49</span>        <span class="nb">min</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">time_sec</span> <span class="o">%</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">//</span> <span class="mi">60</span><span class="p">)</span>
+<span class="linenos"> 50</span>        <span class="n">sec</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">time_sec</span> <span class="o">%</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">%</span> <span class="mi">60</span><span class="p">)</span>
+<span class="linenos"> 51</span>        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> hours </span><span class="si">{}</span><span class="s1"> minutes </span><span class="si">{}</span><span class="s1"> seconds&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hour</span><span class="p">,</span> <span class="nb">min</span><span class="p">,</span> <span class="n">sec</span><span class="p">)</span>
+<span class="linenos"> 52</span>
+<span class="linenos"> 53</span>
+<span class="linenos"> 54</span><span class="k">def</span> <span class="nf">extract_info</span><span class="p">(</span><span class="n">log</span><span class="p">):</span>
+<span class="linenos"> 55</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos"> 56</span>        <span class="n">pattern_size</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Total size of files \(in ([A-Za-z]+)\): ([0-9.]+)&#39;</span>
+<span class="linenos"> 57</span>        <span class="n">pattern_num_files</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Total number of files: (.+)&#39;</span>
+<span class="linenos"> 58</span>        <span class="n">pattern_time_taken</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Total time taken \(in seconds\): (.+)&#39;</span>
+<span class="linenos"> 59</span>        <span class="n">pattern_speed</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Best speed \(in Mbps\): (.+)&#39;</span>
+<span class="linenos"> 60</span>        <span class="n">pattern_avg_speed</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Average speed \(in Mbps\): (.+)&#39;</span>
+<span class="linenos"> 61</span>
+<span class="linenos"> 62</span>        <span class="n">size_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_size</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+<span class="linenos"> 63</span>        <span class="k">if</span> <span class="n">size_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos"> 64</span>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid log format: cannot extract file size&#39;</span><span class="p">)</span>
+<span class="linenos"> 65</span>        <span class="n">num_files_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_num_files</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+<span class="linenos"> 66</span>        <span class="k">if</span> <span class="n">num_files_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos"> 67</span>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<span class="linenos"> 68</span>                <span class="s1">&#39;Invalid log format: cannot extract number of files&#39;</span><span class="p">)</span>
+<span class="linenos"> 69</span>
+<span class="linenos"> 70</span>        <span class="n">time_taken_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_time_taken</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+<span class="linenos"> 71</span>        <span class="k">if</span> <span class="n">time_taken_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos"> 72</span>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid log format: cannot extract time taken&#39;</span><span class="p">)</span>
+<span class="linenos"> 73</span>        <span class="n">speed_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_speed</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+<span class="linenos"> 74</span>        <span class="k">if</span> <span class="n">speed_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos"> 75</span>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid log format: cannot extract best speed&#39;</span><span class="p">)</span>
+<span class="linenos"> 76</span>        <span class="n">avg_speed_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern_avg_speed</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+<span class="linenos"> 77</span>        <span class="k">if</span> <span class="n">avg_speed_match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos"> 78</span>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<span class="linenos"> 79</span>                <span class="s1">&#39;Invalid log format: cannot extract average speed&#39;</span><span class="p">)</span>
+<span class="linenos"> 80</span>
+<span class="linenos"> 81</span>        <span class="n">size_unit</span> <span class="o">=</span> <span class="n">size_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="linenos"> 82</span>        <span class="n">size_val</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">size_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+<span class="linenos"> 83</span>        <span class="k">if</span> <span class="n">size_unit</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;kb&#39;</span><span class="p">:</span>
+<span class="linenos"> 84</span>            <span class="n">size_val</span> <span class="o">/=</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span>
+<span class="linenos"> 85</span>        <span class="k">elif</span> <span class="n">size_unit</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;mb&#39;</span><span class="p">:</span>
+<span class="linenos"> 86</span>            <span class="n">size_val</span> <span class="o">/=</span> <span class="mi">1024</span>
+<span class="linenos"> 87</span>        <span class="k">elif</span> <span class="n">size_unit</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;gb&#39;</span><span class="p">:</span>
+<span class="linenos"> 88</span>            <span class="k">pass</span>
+<span class="linenos"> 89</span>        <span class="k">else</span><span class="p">:</span>
+<span class="linenos"> 90</span>            <span class="k">return</span> <span class="kc">None</span>
+<span class="linenos"> 91</span>
+<span class="linenos"> 92</span>        <span class="n">num_files</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num_files_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="linenos"> 93</span>        <span class="n">time_taken</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">time_taken_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="linenos"> 94</span>        <span class="n">speed</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">speed_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="linenos"> 95</span>        <span class="n">avg_speed</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">avg_speed_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="linenos"> 96</span>
+<span class="linenos"> 97</span>        <span class="k">return</span> <span class="n">size_val</span><span class="p">,</span> <span class="n">num_files</span><span class="p">,</span> <span class="n">time_taken</span><span class="p">,</span> <span class="n">speed</span><span class="p">,</span> <span class="n">avg_speed</span>
+<span class="linenos"> 98</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos"> 99</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">100</span>        <span class="k">return</span> <span class="kc">None</span>
+<span class="linenos">101</span>
+<span class="linenos">102</span>
+<span class="linenos">103</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos">104</span><span class="k">def</span> <span class="nf">retry_with_backoff</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="linenos">105</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">106</span><span class="sd">    Retries a function with exponential backoff.</span>
+<span class="linenos">107</span>
+<span class="linenos">108</span><span class="sd">    Args:</span>
+<span class="linenos">109</span><span class="sd">        function (function): The function to retry.</span>
+<span class="linenos">110</span><span class="sd">        *args: The arguments to pass to the function.</span>
+<span class="linenos">111</span><span class="sd">        **kwargs: The keyword arguments to pass to the function.</span>
+<span class="linenos">112</span>
+<span class="linenos">113</span><span class="sd">    Returns:</span>
+<span class="linenos">114</span><span class="sd">        The return value of the function.</span>
+<span class="linenos">115</span><span class="sd">    Example:</span>
+<span class="linenos">116</span><span class="sd">        &gt;&gt;&gt; retry_with_backoff(my_function, &quot;arg1&quot;, &quot;arg2&quot;, kwarg1=&quot;kwarg1&quot;)</span>
+<span class="linenos">117</span>
+<span class="linenos">118</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">119</span>
+<span class="linenos">120</span>    <span class="n">max_retries</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="linenos">121</span>    <span class="n">base_wait_time</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="linenos">122</span>    <span class="n">retry_count</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="linenos">123</span>
+<span class="linenos">124</span>    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+<span class="linenos">125</span>        <span class="k">try</span><span class="p">:</span>
+<span class="linenos">126</span>            <span class="k">return</span> <span class="n">function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<span class="linenos">127</span>        <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">128</span>            <span class="n">error_code</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;Error&quot;</span><span class="p">][</span><span class="s2">&quot;Code&quot;</span><span class="p">]</span>
+<span class="linenos">129</span>
+<span class="linenos">130</span>            <span class="k">if</span> <span class="n">error_code</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ThrottlingException&quot;</span><span class="p">,</span> <span class="s2">&quot;RequestLimitExceeded&quot;</span><span class="p">,</span> <span class="s2">&quot;InternalFailure&quot;</span><span class="p">]:</span>
+<span class="linenos">131</span>                <span class="n">retry_count</span> <span class="o">+=</span> <span class="mi">1</span>
+<span class="linenos">132</span>
+<span class="linenos">133</span>                <span class="k">if</span> <span class="n">retry_count</span> <span class="o">&gt;</span> <span class="n">max_retries</span><span class="p">:</span>
+<span class="linenos">134</span>                    <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos">135</span>
+<span class="linenos">136</span>                <span class="n">wait_time</span> <span class="o">=</span> <span class="n">base_wait_time</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="n">retry_count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="linenos">137</span>                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">wait_time</span><span class="p">)</span>
+<span class="linenos">138</span>            <span class="k">else</span><span class="p">:</span>
+<span class="linenos">139</span>                <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos">140</span>
+<span class="linenos">141</span>
+<span class="linenos">142</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos">143</span><span class="k">def</span> <span class="nf">run_progress_command</span><span class="p">(</span><span class="n">instanceID</span><span class="p">):</span>
+<span class="linenos">144</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">145</span><span class="sd">    Runs the progress command on the managed instance.</span>
+<span class="linenos">146</span>
+<span class="linenos">147</span><span class="sd">    Args:</span>
+<span class="linenos">148</span><span class="sd">        instanceID (str): The ID of the managed instance.</span>
+<span class="linenos">149</span>
+<span class="linenos">150</span><span class="sd">    Returns:</span>
+<span class="linenos">151</span><span class="sd">        str: The output of the command invocation.</span>
+<span class="linenos">152</span>
+<span class="linenos">153</span><span class="sd">    Raises:</span>
+<span class="linenos">154</span><span class="sd">        botocore.exceptions.ClientError: If there was an issue with the client&#39;s request.</span>
+<span class="linenos">155</span>
+<span class="linenos">156</span><span class="sd">    Example:</span>
+<span class="linenos">157</span><span class="sd">        &gt;&gt;&gt; run_progress_command(&quot;m-1234567890232&quot;)</span>
+<span class="linenos">158</span>
+<span class="linenos">159</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">160</span>    <span class="n">commandID</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="linenos">161</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos">162</span>        <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">send_command</span><span class="p">(</span>
+<span class="linenos">163</span>            <span class="n">InstanceIds</span><span class="o">=</span><span class="p">[</span><span class="n">instanceID</span><span class="p">],</span>
+<span class="linenos">164</span>            <span class="n">DocumentName</span><span class="o">=</span><span class="s2">&quot;AWS-RunShellScript&quot;</span><span class="p">,</span>
+<span class="linenos">165</span>            <span class="n">Parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;commands&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;tail -n 4 /tmp/movedat.log&quot;</span><span class="p">]},</span>
+<span class="linenos">166</span>            <span class="n">TimeoutSeconds</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+<span class="linenos">167</span>        <span class="p">)</span>
+<span class="linenos">168</span>        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;instance_id&quot;</span><span class="p">,</span> <span class="n">instanceID</span><span class="p">)</span>
+<span class="linenos">169</span>        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;command_id&quot;</span><span class="p">,</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Command&quot;</span><span class="p">][</span><span class="s2">&quot;CommandId&quot;</span><span class="p">])</span>
+<span class="linenos">170</span>        <span class="n">commandID</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Command&quot;</span><span class="p">][</span><span class="s2">&quot;CommandId&quot;</span><span class="p">]</span>
+<span class="linenos">171</span>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Command ID: </span><span class="si">{</span><span class="n">commandID</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="linenos">172</span>    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">173</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">174</span>        <span class="k">return</span> <span class="kc">None</span>
+<span class="linenos">175</span>    <span class="c1"># wait for the command to start and then get the output</span>
+<span class="linenos">176</span>    <span class="n">output</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="linenos">177</span>    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="linenos">178</span>    <span class="k">while</span> <span class="n">output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<span class="linenos">179</span>        <span class="k">try</span><span class="p">:</span>
+<span class="linenos">180</span>            <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">get_command_invocation</span><span class="p">(</span>
+<span class="linenos">181</span>                <span class="n">CommandId</span><span class="o">=</span><span class="n">commandID</span><span class="p">,</span> <span class="n">InstanceId</span><span class="o">=</span><span class="n">instanceID</span>
+<span class="linenos">182</span>            <span class="p">)</span>
+<span class="linenos">183</span>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Command Status: </span><span class="si">{</span><span class="n">response</span><span class="p">[</span><span class="s1">&#39;StandardOutputContent&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="linenos">184</span>            <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;instance_id&quot;</span><span class="p">,</span> <span class="n">instanceID</span><span class="p">)</span>
+<span class="linenos">185</span>            <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;command_id&quot;</span><span class="p">,</span> <span class="n">commandID</span><span class="p">)</span>
+<span class="linenos">186</span>            <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">])</span>
+<span class="linenos">187</span>            <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;output&quot;</span><span class="p">,</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">])</span>
+<span class="linenos">188</span>            <span class="n">duration_str</span><span class="p">,</span> <span class="n">total_size_str</span><span class="p">,</span> <span class="n">downloaded_size_str</span><span class="p">,</span> <span class="n">estimated_time_str</span> <span class="o">=</span> <span class="n">extract_info_progress</span><span class="p">(</span>
+<span class="linenos">189</span>                <span class="n">response</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">])</span>
+<span class="linenos">190</span>            <span class="k">return</span> <span class="n">duration_str</span><span class="p">,</span> <span class="n">total_size_str</span><span class="p">,</span> <span class="n">downloaded_size_str</span><span class="p">,</span> <span class="n">estimated_time_str</span>
+<span class="linenos">191</span>        <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">192</span>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">193</span>            <span class="k">return</span> <span class="kc">None</span>
+<span class="linenos">194</span>
+<span class="linenos">195</span>
+<span class="linenos">196</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos">197</span><span class="k">def</span> <span class="nf">get_instance_id</span><span class="p">(</span><span class="n">theater_id</span><span class="p">):</span>
+<span class="linenos">198</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">199</span><span class="sd">    Get the instance ID for a given client.</span>
+<span class="linenos">200</span>
+<span class="linenos">201</span><span class="sd">    Args:</span>
+<span class="linenos">202</span><span class="sd">        client_id (str): The ID of the client.</span>
+<span class="linenos">203</span><span class="sd">    Returns:</span>
+<span class="linenos">204</span><span class="sd">        str: The instance ID of the client.</span>
+<span class="linenos">205</span><span class="sd">    Raises:</span>
+<span class="linenos">206</span><span class="sd">        botocore.exceptions.ClientError: If there was an issue with the client&#39;s request.</span>
+<span class="linenos">207</span><span class="sd">    Example:</span>
+<span class="linenos">208</span><span class="sd">        &gt;&gt;&gt; get_instance_id(&quot;PVR-001&quot;)</span>
+<span class="linenos">209</span><span class="sd">        &quot;m-1234567890232&quot;</span>
+<span class="linenos">210</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">211</span>
+<span class="linenos">212</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos">213</span>        <span class="n">response</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">Key</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;TheaterId&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">})</span>
+<span class="linenos">214</span>        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;theater_id&quot;</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">)</span>
+<span class="linenos">215</span>        <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;instance_id&quot;</span><span class="p">,</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Item&quot;</span><span class="p">][</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">])</span>
+<span class="linenos">216</span>        <span class="k">return</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Item&quot;</span><span class="p">][</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">]</span>
+<span class="linenos">217</span>    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">218</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">219</span>        <span class="k">return</span> <span class="kc">None</span>
+<span class="linenos">220</span>    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+<span class="linenos">221</span>        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No item found for theater_id </span><span class="si">{</span><span class="n">theater_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="linenos">222</span>        <span class="k">return</span> <span class="kc">None</span>
+<span class="linenos">223</span>
+<span class="linenos">224</span>
+<span class="linenos">225</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos">226</span><span class="k">def</span> <span class="nf">get_connection_status</span><span class="p">(</span><span class="n">instance_id</span><span class="p">):</span>
+<span class="linenos">227</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">228</span><span class="sd">    Get the connection status of an Amazon managed instance.</span>
+<span class="linenos">229</span>
+<span class="linenos">230</span><span class="sd">    This function retrieves the connection status for a given instance by using the AWS Systems Manager API.</span>
+<span class="linenos">231</span>
+<span class="linenos">232</span><span class="sd">    Args:</span>
+<span class="linenos">233</span><span class="sd">        instance_id (str): The ID of the instance.</span>
+<span class="linenos">234</span>
+<span class="linenos">235</span><span class="sd">    Returns:</span>
+<span class="linenos">236</span><span class="sd">        str: The connection status of the instance.</span>
+<span class="linenos">237</span>
+<span class="linenos">238</span><span class="sd">    Example:</span>
+<span class="linenos">239</span><span class="sd">        &gt;&gt;&gt; get_connection_status(&quot;m-1234567890232&quot;)</span>
+<span class="linenos">240</span><span class="sd">        &quot;Online&quot;</span>
+<span class="linenos">241</span>
+<span class="linenos">242</span><span class="sd">    Exeption:</span>
+<span class="linenos">243</span><span class="sd">        botocore.exceptions.ClientError: If there was an issue with the client&#39;s request.</span>
+<span class="linenos">244</span>
+<span class="linenos">245</span>
+<span class="linenos">246</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">247</span>
+<span class="linenos">248</span>    <span class="n">res</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">describe_instance_information</span><span class="p">(</span>
+<span class="linenos">249</span>        <span class="n">Filters</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;Key&quot;</span><span class="p">:</span> <span class="s2">&quot;InstanceIds&quot;</span><span class="p">,</span> <span class="s2">&quot;Values&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">instance_id</span><span class="p">]}]</span>
+<span class="linenos">250</span>    <span class="p">)</span>
+<span class="linenos">251</span>    <span class="n">client_status</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;InstanceInformationList&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;PingStatus&quot;</span><span class="p">]</span>
+<span class="linenos">252</span>
+<span class="linenos">253</span>    <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span><span class="s2">&quot;instance_id&quot;</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">)</span>
+<span class="linenos">254</span>    <span class="n">tracer</span><span class="o">.</span><span class="n">put_annotation</span><span class="p">(</span>
+<span class="linenos">255</span>        <span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;InstanceInformationList&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;PingStatus&quot;</span><span class="p">])</span>
+<span class="linenos">256</span>    <span class="k">return</span> <span class="n">client_status</span>
+<span class="linenos">257</span>
+<span class="linenos">258</span>
+<span class="linenos">259</span><span class="nd">@logger</span><span class="o">.</span><span class="n">inject_lambda_context</span>
+<span class="linenos">260</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_lambda_handler</span>
+<span class="linenos">261</span><span class="k">def</span> <span class="nf">lambda_handler</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="n">LambdaContext</span><span class="p">):</span>
+<span class="linenos">262</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">263</span><span class="sd">    Lambda handler for the ExpeDatSSMInvocationQuery function.</span>
+<span class="linenos">264</span>
+<span class="linenos">265</span><span class="sd">    Args:</span>
+<span class="linenos">266</span><span class="sd">        event (dict): The event data passed to the function.</span>
+<span class="linenos">267</span><span class="sd">        context (LambdaContext): The context data passed to the function.</span>
+<span class="linenos">268</span>
+<span class="linenos">269</span><span class="sd">    Returns:</span>
+<span class="linenos">270</span><span class="sd">        dict: A dictionary containing the response data.</span>
+<span class="linenos">271</span>
+<span class="linenos">272</span><span class="sd">    Raises:</span>
+<span class="linenos">273</span><span class="sd">        None</span>
+<span class="linenos">274</span>
+<span class="linenos">275</span><span class="sd">    Example:</span>
+<span class="linenos">276</span><span class="sd">        &gt;&gt;&gt; lambda_handler({&quot;JobId&quot;: &quot;1234567890&quot;, &quot;ClientId&quot;: &quot;PVR-001&quot;}, {})</span>
+<span class="linenos">277</span><span class="sd">        {&quot;statusCode&quot;: 200, &quot;body&quot;: json.dumps({&quot;ClientId&quot;: &quot;PVR-001&quot;, &quot;JobId&quot;: &quot;1234567890&quot;, &quot;InstanceId&quot;: &quot;m-1234567890abcdef0&quot;, &quot;ExecutionStartDateTime&quot;: &quot;2020-01-01T00:00:00Z&quot;, &quot;ExecutionElapsedTime&quot;: &quot;PT0S&quot;, &quot;Status&quot;: &quot;Success&quot;, &quot;StatusDetails&quot;: &quot;Success&quot;, &quot;StandardOutputContent&quot;: &quot;Success&quot;, &quot;StandardErrorContent&quot;: &quot;&quot;})}</span>
+<span class="linenos">278</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">279</span>
+<span class="linenos">280</span>    <span class="c1"># get command_id and theater_id from post call body</span>
+<span class="linenos">281</span>    <span class="n">body</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">])</span>
+<span class="linenos">282</span>    <span class="n">command_id</span> <span class="o">=</span> <span class="n">body</span><span class="p">[</span><span class="s2">&quot;JobId&quot;</span><span class="p">]</span>
+<span class="linenos">283</span>    <span class="n">theater_id</span> <span class="o">=</span> <span class="n">body</span><span class="p">[</span><span class="s2">&quot;ClientId&quot;</span><span class="p">]</span>
+<span class="linenos">284</span>
+<span class="linenos">285</span>    <span class="c1"># get instance_id from dynamodb table</span>
+<span class="linenos">286</span>    <span class="k">def</span> <span class="nf">get_instance_id_with_retry</span><span class="p">(</span><span class="n">theater_id</span><span class="p">):</span>
+<span class="linenos">287</span>        <span class="k">return</span> <span class="n">retry_with_backoff</span><span class="p">(</span><span class="n">get_instance_id</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">)</span>
+<span class="linenos">288</span>    <span class="n">instance_id</span> <span class="o">=</span> <span class="n">get_instance_id_with_retry</span><span class="p">(</span><span class="n">theater_id</span><span class="p">)</span>
+<span class="linenos">289</span>
+<span class="linenos">290</span>    <span class="k">if</span> <span class="ow">not</span> <span class="n">instance_id</span><span class="p">:</span>
+<span class="linenos">291</span>        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">theater_id</span><span class="o">=</span><span class="n">theater_id</span><span class="p">)</span>
+<span class="linenos">292</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;instance_id is incorrect&quot;</span><span class="p">)</span>
+<span class="linenos">293</span>
+<span class="linenos">294</span>        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span> <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+<span class="linenos">295</span>            <span class="s2">&quot;ClientStatus&quot;</span><span class="p">:</span> <span class="s2">&quot;ClientNotFound&quot;</span><span class="p">,</span>
+<span class="linenos">296</span>            <span class="s2">&quot;ClientId&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span>
+<span class="linenos">297</span>        <span class="p">})}</span>
+<span class="linenos">298</span>
+<span class="linenos">299</span>    <span class="c1"># capture instance status, plugin name from ssm describe_instance_information</span>
+<span class="linenos">300</span>    <span class="k">def</span> <span class="nf">get_client_status_with_retry</span><span class="p">(</span><span class="n">instance_id</span><span class="p">):</span>
+<span class="linenos">301</span>        <span class="k">return</span> <span class="n">retry_with_backoff</span><span class="p">(</span><span class="n">get_connection_status</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">)</span>
+<span class="linenos">302</span>    <span class="n">client_status</span> <span class="o">=</span> <span class="n">get_client_status_with_retry</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+<span class="linenos">303</span>    <span class="c1"># check if instance is connected</span>
+<span class="linenos">304</span>
+<span class="linenos">305</span>    <span class="k">if</span> <span class="n">client_status</span> <span class="o">!=</span> <span class="s2">&quot;Online&quot;</span><span class="p">:</span>
+<span class="linenos">306</span>        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">instance_id</span><span class="o">=</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">theater_id</span><span class="o">=</span><span class="n">theater_id</span><span class="p">)</span>
+<span class="linenos">307</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;instance is not online&quot;</span><span class="p">)</span>
+<span class="linenos">308</span>        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span> <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+<span class="linenos">309</span>            <span class="s2">&quot;ClientStatus&quot;</span><span class="p">:</span> <span class="s2">&quot;Offline&quot;</span><span class="p">,</span>
+<span class="linenos">310</span>            <span class="s2">&quot;ClientId&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span>
+<span class="linenos">311</span>        <span class="p">})}</span>
+<span class="linenos">312</span>
+<span class="linenos">313</span>    <span class="k">def</span> <span class="nf">get_command_invocation_with_retry</span><span class="p">(</span><span class="n">command_id</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">):</span>
+<span class="linenos">314</span>        <span class="k">return</span> <span class="n">retry_with_backoff</span><span class="p">(</span><span class="n">ssm_client</span><span class="o">.</span><span class="n">get_command_invocation</span><span class="p">,</span> <span class="n">command_id</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">)</span>
+<span class="linenos">315</span>
+<span class="linenos">316</span>    <span class="k">def</span> <span class="nf">get_command_invocation_with_retry</span><span class="p">(</span><span class="n">command_id</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">):</span>
+<span class="linenos">317</span>        <span class="k">return</span> <span class="n">retry_with_backoff</span><span class="p">(</span><span class="n">ssm_client</span><span class="o">.</span><span class="n">get_command_invocation</span><span class="p">,</span> <span class="n">CommandId</span><span class="o">=</span><span class="n">command_id</span><span class="p">,</span> <span class="n">InstanceId</span><span class="o">=</span><span class="n">instance_id</span><span class="p">)</span>
+<span class="linenos">318</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos">319</span>        <span class="n">res</span> <span class="o">=</span> <span class="n">get_command_invocation_with_retry</span><span class="p">(</span><span class="n">command_id</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">)</span>
+<span class="linenos">320</span>
+<span class="linenos">321</span>        <span class="n">logger</span><span class="o">.</span><span class="n">append_keys</span><span class="p">(</span><span class="n">command_id</span><span class="o">=</span><span class="n">command_id</span><span class="p">,</span>
+<span class="linenos">322</span>                           <span class="n">instance_id</span><span class="o">=</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">theater_id</span><span class="o">=</span><span class="n">theater_id</span><span class="p">)</span>
+<span class="linenos">323</span>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<span class="linenos">324</span>            <span class="sa">f</span><span class="s2">&quot;Succesfully got command invocation for theater ID: </span><span class="si">{</span><span class="n">theater_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="linenos">325</span>    <span class="k">except</span> <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">326</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">327</span>        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+<span class="linenos">328</span>            <span class="s2">&quot;ClientStatus&quot;</span><span class="p">:</span> <span class="n">client_status</span><span class="p">,</span>
+<span class="linenos">329</span>            <span class="s2">&quot;ClientId&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span>
+<span class="linenos">330</span>            <span class="s2">&quot;Status&quot;</span><span class="p">:</span> <span class="s2">&quot;JobId is incorrect&quot;</span><span class="p">,</span>
+<span class="linenos">331</span>        <span class="p">})}</span>
+<span class="linenos">332</span>
+<span class="linenos">333</span>    <span class="n">info</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="linenos">334</span>    <span class="k">if</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span> <span class="ow">and</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot; &quot;</span><span class="p">:</span>
+<span class="linenos">335</span>        <span class="n">data</span> <span class="o">=</span> <span class="n">extract_info</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">])</span>
+<span class="linenos">336</span>        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+<span class="linenos">337</span>            <span class="n">info</span> <span class="o">=</span> <span class="s2">&quot;Total size of files: </span><span class="si">{:.2f}</span><span class="s2"> GB, Total number of files: </span><span class="si">{}</span><span class="s2">, Total time taken: </span><span class="si">{}</span><span class="s2">, Best speed: </span><span class="si">{:.2f}</span><span class="s2"> Mbps, Average speed: </span><span class="si">{:.2f}</span><span class="s2"> Mbps&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+<span class="linenos">338</span>                <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">format_time</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="n">data</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+<span class="linenos">339</span>
+<span class="linenos">340</span>        <span class="k">else</span><span class="p">:</span>
+<span class="linenos">341</span>            <span class="n">info</span> <span class="o">=</span> <span class="s2">&quot;No information available&quot;</span>
+<span class="linenos">342</span>    <span class="c1"># if status is in progress, call run_progress_command to get progress</span>
+<span class="linenos">343</span>    <span class="c1"># data = {}</span>
+<span class="linenos">344</span>    <span class="c1"># if res[&quot;Status&quot;] == &quot;InProgress&quot;:</span>
+<span class="linenos">345</span>    <span class="c1">#     duration_str, total_size_str, downloaded_size_str, estimated_time_str = run_progress_command(</span>
+<span class="linenos">346</span>    <span class="c1">#         instance_id)</span>
+<span class="linenos">347</span>    <span class="c1">#     data = {</span>
+<span class="linenos">348</span>    <span class="c1">#         &quot;Duration&quot;: duration_str,</span>
+<span class="linenos">349</span>    <span class="c1">#         &quot;TotalSize&quot;: total_size_str,</span>
+<span class="linenos">350</span>    <span class="c1">#         &quot;DownloadedSize&quot;: downloaded_size_str,</span>
+<span class="linenos">351</span>    <span class="c1">#         &quot;EstimatedTime&quot;: estimated_time_str,</span>
+<span class="linenos">352</span>    <span class="c1">#     }</span>
+<span class="linenos">353</span>
+<span class="linenos">354</span>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+<span class="linenos">355</span>        <span class="s2">&quot;ClientId&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span>
+<span class="linenos">356</span>        <span class="s2">&quot;JobId&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;CommandId&quot;</span><span class="p">),</span>
+<span class="linenos">357</span>        <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">),</span>
+<span class="linenos">358</span>        <span class="s2">&quot;ExecutionStartDateTime&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ExecutionStartDateTime&quot;</span><span class="p">),</span>
+<span class="linenos">359</span>        <span class="s2">&quot;ExecutionElapsedTime&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ExecutionElapsedTime&quot;</span><span class="p">),</span>
+<span class="linenos">360</span>        <span class="s2">&quot;ExecutionEndDateTime&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ExecutionEndDateTime&quot;</span><span class="p">),</span>
+<span class="linenos">361</span>        <span class="s2">&quot;Status&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Status&quot;</span><span class="p">),</span>
+<span class="linenos">362</span>        <span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">:</span> <span class="p">[</span>
+<span class="linenos">363</span>            <span class="p">{</span><span class="s2">&quot;rawOutput&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">)},</span>
+<span class="linenos">364</span>            <span class="p">{</span><span class="s2">&quot;info&quot;</span><span class="p">:</span> <span class="n">info</span><span class="p">},</span>
+<span class="linenos">365</span>        <span class="p">],</span>
+<span class="linenos">366</span>        <span class="s2">&quot;StandardErrorContent&quot;</span><span class="p">:</span> <span class="n">get_error_message</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;StandardErrorContent&quot;</span><span class="p">)),</span>
+<span class="linenos">367</span>        <span class="s2">&quot;ClientStatus&quot;</span><span class="p">:</span> <span class="n">client_status</span><span class="p">,</span>
+<span class="linenos">368</span>        <span class="c1"># &quot;Progress&quot;: data,</span>
+<span class="linenos">369</span>    <span class="p">})}</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 

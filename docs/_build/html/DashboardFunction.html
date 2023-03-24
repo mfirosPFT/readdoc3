@@ -48,7 +48,10 @@
 <li class="toctree-l2"><a class="reference internal" href="ExpeDatSSMRunDocumet.html">ExpeDatSSMRunDocumet Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ExpeDatSSMInvocationQuery.html">ExpeDatSSMInvocationQuery Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="SSMNotification.html">SSMNotification Documentation</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">DashboardFunction Documentation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">DashboardFunction Documentation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#code">Code</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="CustomAuthorizer.html">CustomAuthorizer Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="SSMAgentActivation.html">SSMAgentActivation Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="SSMInstallScriptGenerator.html">SSMInstallScriptGenerator Documentation</a></li>
@@ -223,6 +226,316 @@
 </dl>
 </dd></dl>
 
+<section id="code">
+<h2>Code<a class="headerlink" href="#code" title="Permalink to this headline"></a></h2>
+<p>This section defines the code that  is used to create the dashboard.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos">  1</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">  2</span><span class="sd">This module provides a Lambda function that generates a table of AWS cost and usage data or a table of AWS System Manager (SSM) command invocation statuses based on user input. The function is triggered by an AWS CloudWatch dashboard widget.</span>
+<span class="linenos">  3</span>
+<span class="linenos">  4</span><span class="sd">Functions:</span>
+<span class="linenos">  5</span><span class="sd">    - generate_table_cost(data): Generates an HTML table with AWS cost and usage data.</span>
+<span class="linenos">  6</span><span class="sd">    - generate_table_ssm(data): Generates an HTML table with SSM command statuses.</span>
+<span class="linenos">  7</span><span class="sd">    - convert_filter(filter_input, start_time, end_time): Formats start and end times and adds input filter to a list.</span>
+<span class="linenos">  8</span><span class="sd">    - get_command_statuses(start_time, end_time): Returns a dictionary of counts for each SSM command invocation status type.</span>
+<span class="linenos">  9</span><span class="sd">    - get_cost_usage(start_time, end_time): Returns an HTML table of AWS cost and usage data grouped by service.</span>
+<span class="linenos"> 10</span><span class="sd">    - lambda_handler(event, context): Main Lambda function that determines which function to run based on user input and returns the result as an HTML table.</span>
+<span class="linenos"> 11</span>
+<span class="linenos"> 12</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 13</span>
+<span class="linenos"> 14</span><span class="kn">import</span> <span class="nn">boto3</span>
+<span class="linenos"> 15</span><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="linenos"> 16</span><span class="kn">import</span> <span class="nn">os</span>
+<span class="linenos"> 17</span>
+<span class="linenos"> 18</span><span class="n">session</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+<span class="linenos"> 19</span><span class="n">cost_explorer</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ce&quot;</span><span class="p">)</span>
+<span class="linenos"> 20</span><span class="n">document_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SSM_DOCUMENT_NAME&#39;</span><span class="p">]</span>
+<span class="linenos"> 21</span><span class="n">project</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;PROJECT_NAME&#39;</span><span class="p">]</span>
+<span class="linenos"> 22</span><span class="n">ssm_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ssm&quot;</span><span class="p">)</span>
+<span class="linenos"> 23</span>
+<span class="linenos"> 24</span>
+<span class="linenos"> 25</span><span class="k">def</span> <span class="nf">generate_table_ssm</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="linenos"> 26</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 27</span><span class="sd">    Generate an HTML table with SSM command statuses.</span>
+<span class="linenos"> 28</span>
+<span class="linenos"> 29</span><span class="sd">    Args:</span>
+<span class="linenos"> 30</span><span class="sd">        data (dict): A dictionary containing SSM command statuses.</span>
+<span class="linenos"> 31</span>
+<span class="linenos"> 32</span><span class="sd">    Returns:</span>
+<span class="linenos"> 33</span><span class="sd">        str: An HTML table with SSM command statuses.</span>
+<span class="linenos"> 34</span>
+<span class="linenos"> 35</span><span class="sd">    Example:</span>
+<span class="linenos"> 36</span><span class="sd">        &gt;&gt;&gt; data = {&#39;Pending&#39;: 10, &#39;InProgress&#39;: 5, &#39;Success&#39;: 20, &#39;Cancelled&#39;: 0, &#39;Failed&#39;: 1, &#39;TimedOut&#39;: 0,</span>
+<span class="linenos"> 37</span><span class="sd">        ...         &#39;DeliveryTimedOut&#39;: 0, &#39;ExecutionTimedOut&#39;: 0, &#39;Incomplete&#39;: 0, &#39;LimitExceeded&#39;: 0}</span>
+<span class="linenos"> 38</span><span class="sd">        &gt;&gt;&gt; generate_table_ssm(data)</span>
+<span class="linenos"> 39</span><span class="sd">        &#39;&lt;table&gt;...&lt;/table&gt;&#39;</span>
+<span class="linenos"> 40</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos"> 41</span>    <span class="n">html</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="linenos"> 42</span><span class="s2">    &lt;style&gt;</span>
+<span class="linenos"> 43</span><span class="s2">        table {</span>
+<span class="linenos"> 44</span><span class="s2">            font-family: arial, sans-serif;</span>
+<span class="linenos"> 45</span><span class="s2">            border-collapse: collapse;</span>
+<span class="linenos"> 46</span><span class="s2">            width: 100%;</span>
+<span class="linenos"> 47</span><span class="s2">        }</span>
+<span class="linenos"> 48</span><span class="s2">        td, th {</span>
+<span class="linenos"> 49</span><span class="s2">            border: 1px solid #dddddd;</span>
+<span class="linenos"> 50</span><span class="s2">            text-align: left;</span>
+<span class="linenos"> 51</span><span class="s2">            padding: 8px;</span>
+<span class="linenos"> 52</span><span class="s2">        }</span>
+<span class="linenos"> 53</span><span class="s2">        tr:nth-child(even) {</span>
+<span class="linenos"> 54</span><span class="s2">            background-color: #dddddd;</span>
+<span class="linenos"> 55</span><span class="s2">        }</span>
+<span class="linenos"> 56</span><span class="s2">        .error td {</span>
+<span class="linenos"> 57</span><span class="s2">            color: red;</span>
+<span class="linenos"> 58</span><span class="s2">        }</span>
+<span class="linenos"> 59</span><span class="s2">    &lt;/style&gt;</span>
+<span class="linenos"> 60</span><span class="s2">    &lt;table&gt;</span>
+<span class="linenos"> 61</span><span class="s2">        &lt;tr&gt;</span>
+<span class="linenos"> 62</span><span class="s2">            &lt;th&gt;Status&lt;/th&gt;</span>
+<span class="linenos"> 63</span><span class="s2">            &lt;th&gt;Count&lt;/th&gt;</span>
+<span class="linenos"> 64</span><span class="s2">        &lt;/tr&gt;</span>
+<span class="linenos"> 65</span><span class="s2">    &quot;&quot;&quot;</span>
+<span class="linenos"> 66</span>    <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="linenos"> 67</span>    <span class="k">for</span> <span class="n">status</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<span class="linenos"> 68</span>        <span class="n">total</span> <span class="o">+=</span> <span class="n">count</span>
+<span class="linenos"> 69</span>        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Failed&quot;</span> <span class="ow">and</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<span class="linenos"> 70</span>            <span class="n">html</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&lt;tr class=&#39;error&#39;&gt;&lt;td&gt;</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">&lt;/td&gt;&lt;td&gt;</span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s2">&lt;/td&gt;&lt;/tr&gt;&quot;</span>
+<span class="linenos"> 71</span>        <span class="k">else</span><span class="p">:</span>
+<span class="linenos"> 72</span>            <span class="n">html</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&lt;tr&gt;&lt;td&gt;</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">&lt;/td&gt;&lt;td&gt;</span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s2">&lt;/td&gt;&lt;/tr&gt;&quot;</span>
+<span class="linenos"> 73</span>    <span class="n">html</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&lt;tr&gt;&lt;td&gt;&lt;b&gt;Total&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;</span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2">&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&quot;</span>
+<span class="linenos"> 74</span>    <span class="n">html</span> <span class="o">+=</span> <span class="s2">&quot;&lt;/table&gt;&quot;</span>
+<span class="linenos"> 75</span>    <span class="k">return</span> <span class="n">html</span>
+<span class="linenos"> 76</span>
+<span class="linenos"> 77</span>
+<span class="linenos"> 78</span><span class="k">def</span> <span class="nf">generate_table_cost</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="linenos"> 79</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 80</span><span class="sd">    Generate an HTML table with AWS cost usage.</span>
+<span class="linenos"> 81</span>
+<span class="linenos"> 82</span><span class="sd">    Args:</span>
+<span class="linenos"> 83</span><span class="sd">        data (dict): A dictionary containing AWS cost usage.</span>
+<span class="linenos"> 84</span>
+<span class="linenos"> 85</span><span class="sd">    Returns:</span>
+<span class="linenos"> 86</span><span class="sd">        str: An HTML table with AWS cost usage.</span>
+<span class="linenos"> 87</span>
+<span class="linenos"> 88</span><span class="sd">    Example:</span>
+<span class="linenos"> 89</span><span class="sd">        &gt;&gt;&gt; data = {&#39;AWS Lambda&#39;: &#39;0.0000001&#39;, &#39;Amazon RDS&#39;: &#39;0.0000002&#39;, &#39;Amazon S3&#39;: &#39;0.0000003&#39;}</span>
+<span class="linenos"> 90</span><span class="sd">        &gt;&gt;&gt; generate_table_cost(data)</span>
+<span class="linenos"> 91</span><span class="sd">        &#39;&lt;table&gt;...&lt;/table&gt;&#39;</span>
+<span class="linenos"> 92</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos"> 93</span>    <span class="n">html</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="linenos"> 94</span><span class="s2">    &lt;style&gt;</span>
+<span class="linenos"> 95</span><span class="s2">        table {</span>
+<span class="linenos"> 96</span><span class="s2">            font-family: arial, sans-serif;</span>
+<span class="linenos"> 97</span><span class="s2">            border-collapse: collapse;</span>
+<span class="linenos"> 98</span><span class="s2">            width: 100%;</span>
+<span class="linenos"> 99</span><span class="s2">        }</span>
+<span class="linenos">100</span><span class="s2">        td, th {</span>
+<span class="linenos">101</span><span class="s2">            border: 1px solid #dddddd;</span>
+<span class="linenos">102</span><span class="s2">            text-align: left;</span>
+<span class="linenos">103</span><span class="s2">            padding: 8px;</span>
+<span class="linenos">104</span><span class="s2">        }</span>
+<span class="linenos">105</span><span class="s2">        tr:nth-child(even) {</span>
+<span class="linenos">106</span><span class="s2">            background-color: #dddddd;</span>
+<span class="linenos">107</span><span class="s2">        }</span>
+<span class="linenos">108</span><span class="s2">    &lt;/style&gt;</span>
+<span class="linenos">109</span><span class="s2">    &lt;table&gt;</span>
+<span class="linenos">110</span><span class="s2">        &lt;tr&gt;</span>
+<span class="linenos">111</span><span class="s2">            &lt;th&gt;Service&lt;/th&gt;</span>
+<span class="linenos">112</span><span class="s2">            &lt;th&gt;Cost&lt;/th&gt;</span>
+<span class="linenos">113</span><span class="s2">        &lt;/tr&gt;</span>
+<span class="linenos">114</span><span class="s2">    &quot;&quot;&quot;</span>
+<span class="linenos">115</span>    <span class="n">total_cost</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="linenos">116</span>    <span class="k">for</span> <span class="n">service</span><span class="p">,</span> <span class="n">cost</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<span class="linenos">117</span>        <span class="n">cost</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cost</span><span class="p">)</span>
+<span class="linenos">118</span>        <span class="n">total_cost</span> <span class="o">+=</span> <span class="n">cost</span>
+<span class="linenos">119</span>        <span class="n">html</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&lt;tr&gt;&lt;td&gt;</span><span class="si">{</span><span class="n">service</span><span class="si">}</span><span class="s2">&lt;/td&gt;&lt;td&gt;$</span><span class="si">{</span><span class="s1">&#39;</span><span class="si">{:,.7f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cost</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;/td&gt;&lt;/tr&gt;&quot;</span>
+<span class="linenos">120</span>    <span class="n">html</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&lt;tr&gt;&lt;td&gt;&lt;b&gt;Total&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;$</span><span class="si">{</span><span class="s1">&#39;</span><span class="si">{:,.7f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">total_cost</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&quot;</span>
+<span class="linenos">121</span>    <span class="n">html</span> <span class="o">+=</span> <span class="s2">&quot;&lt;/table&gt;&quot;</span>
+<span class="linenos">122</span>    <span class="k">return</span> <span class="n">html</span>
+<span class="linenos">123</span>
+<span class="linenos">124</span>
+<span class="linenos">125</span><span class="k">def</span> <span class="nf">convert_filter</span><span class="p">(</span><span class="n">filter_input</span><span class="p">,</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">):</span>
+<span class="linenos">126</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">127</span><span class="sd">    Convert the input filter into a format that can be used with AWS Systems Manager ListCommands API.</span>
+<span class="linenos">128</span>
+<span class="linenos">129</span><span class="sd">    Args:</span>
+<span class="linenos">130</span><span class="sd">        filter_input (dict): A dictionary representing the filter to be converted.</span>
+<span class="linenos">131</span><span class="sd">        start_time (int): The start time in milliseconds.</span>
+<span class="linenos">132</span><span class="sd">        end_time (int): The end time in milliseconds.</span>
+<span class="linenos">133</span>
+<span class="linenos">134</span><span class="sd">    Returns:</span>
+<span class="linenos">135</span><span class="sd">        list: A list of dictionaries representing the converted filter.</span>
+<span class="linenos">136</span>
+<span class="linenos">137</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">138</span>    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="linenos">139</span>    <span class="c1"># format the start and end time</span>
+<span class="linenos">140</span>    <span class="n">start_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span>
+<span class="linenos">141</span>        <span class="n">start_time</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">T%H:%M:%SZ&#39;</span><span class="p">)</span>
+<span class="linenos">142</span>    <span class="n">end_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span>
+<span class="linenos">143</span>        <span class="n">end_time</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">T%H:%M:%SZ&#39;</span><span class="p">)</span>
+<span class="linenos">144</span>
+<span class="linenos">145</span>    <span class="c1"># add the start and end time to the result list</span>
+<span class="linenos">146</span>    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;InvokedAfter&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">start_time</span><span class="p">})</span>
+<span class="linenos">147</span>    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;InvokedBefore&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">end_time</span><span class="p">})</span>
+<span class="linenos">148</span>    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;DocumentName&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">document_name</span><span class="p">})</span>
+<span class="linenos">149</span>
+<span class="linenos">150</span>    <span class="c1"># add the input filter to the result list</span>
+<span class="linenos">151</span>    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filter_input</span><span class="p">)</span>
+<span class="linenos">152</span>
+<span class="linenos">153</span>    <span class="k">return</span> <span class="n">result</span>
+<span class="linenos">154</span>
+<span class="linenos">155</span>
+<span class="linenos">156</span><span class="k">def</span> <span class="nf">get_command_statuses</span><span class="p">(</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">):</span>
+<span class="linenos">157</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">158</span><span class="sd">    Get the number of AWS Systems Manager commands in each status during the specified time period.</span>
+<span class="linenos">159</span>
+<span class="linenos">160</span><span class="sd">    Args:</span>
+<span class="linenos">161</span><span class="sd">        start_time (int): The start time in milliseconds.</span>
+<span class="linenos">162</span><span class="sd">        end_time (int): The end time in milliseconds.</span>
+<span class="linenos">163</span>
+<span class="linenos">164</span><span class="sd">    Returns:</span>
+<span class="linenos">165</span><span class="sd">        dict: A dictionary where the keys are command statuses and the values are the number of commands in that status.</span>
+<span class="linenos">166</span>
+<span class="linenos">167</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">168</span>    <span class="n">filters</span> <span class="o">=</span> <span class="p">[</span>
+<span class="linenos">169</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;Pending&quot;</span><span class="p">},</span>
+<span class="linenos">170</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;InProgress&quot;</span><span class="p">},</span>
+<span class="linenos">171</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;Success&quot;</span><span class="p">},</span>
+<span class="linenos">172</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;Cancelled&quot;</span><span class="p">},</span>
+<span class="linenos">173</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;Failed&quot;</span><span class="p">},</span>
+<span class="linenos">174</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;TimedOut&quot;</span><span class="p">},</span>
+<span class="linenos">175</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;DeliveryTimedOut&quot;</span><span class="p">},</span>
+<span class="linenos">176</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;ExecutionTimedOut&quot;</span><span class="p">},</span>
+<span class="linenos">177</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;Incomplete&quot;</span><span class="p">},</span>
+<span class="linenos">178</span>        <span class="p">{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;LimitExceeded&quot;</span><span class="p">},</span>
+<span class="linenos">179</span>    <span class="p">]</span>
+<span class="linenos">180</span>    <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="linenos">181</span>    <span class="k">for</span> <span class="nb">filter</span> <span class="ow">in</span> <span class="n">filters</span><span class="p">:</span>
+<span class="linenos">182</span>        <span class="n">filterValue</span> <span class="o">=</span> <span class="n">convert_filter</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">)</span>
+<span class="linenos">183</span>        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+<span class="linenos">184</span>            <span class="s1">&#39;Filters&#39;</span><span class="p">:</span> <span class="n">filterValue</span>
+<span class="linenos">185</span>        <span class="p">}</span>
+<span class="linenos">186</span>        <span class="n">next_token</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="linenos">187</span>        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+<span class="linenos">188</span>            <span class="k">if</span> <span class="n">next_token</span><span class="p">:</span>
+<span class="linenos">189</span>                <span class="n">params</span><span class="p">[</span><span class="s1">&#39;NextToken&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">next_token</span>
+<span class="linenos">190</span>            <span class="k">try</span><span class="p">:</span>
+<span class="linenos">191</span>                <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">list_commands</span><span class="p">(</span><span class="o">**</span><span class="n">params</span><span class="p">)</span>
+<span class="linenos">192</span>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">193</span>                <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;An error occurred (ThrottlingException) when calling the ListCommands operation (reached max retries: 4): Rate exceeded&quot;</span><span class="p">:</span>
+<span class="linenos">194</span>                    <span class="k">return</span> <span class="s2">&quot;Try Again&quot;</span>
+<span class="linenos">195</span>                <span class="k">else</span><span class="p">:</span>
+<span class="linenos">196</span>                    <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos">197</span>
+<span class="linenos">198</span>            <span class="k">if</span> <span class="s2">&quot;Commands&quot;</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+<span class="linenos">199</span>                <span class="k">if</span> <span class="nb">filter</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+<span class="linenos">200</span>                    <span class="n">result</span><span class="p">[</span><span class="nb">filter</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]]</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="s1">&#39;Commands&#39;</span><span class="p">])</span>
+<span class="linenos">201</span>                <span class="k">else</span><span class="p">:</span>
+<span class="linenos">202</span>                    <span class="n">result</span><span class="p">[</span><span class="nb">filter</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="s1">&#39;Commands&#39;</span><span class="p">])</span>
+<span class="linenos">203</span>            <span class="k">if</span> <span class="s1">&#39;NextToken&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+<span class="linenos">204</span>                <span class="k">break</span>
+<span class="linenos">205</span>            <span class="n">next_token</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;NextToken&#39;</span><span class="p">]</span>
+<span class="linenos">206</span>    <span class="k">return</span> <span class="n">result</span>
+<span class="linenos">207</span>
+<span class="linenos">208</span>
+<span class="linenos">209</span><span class="k">def</span> <span class="nf">get_cost_usage</span><span class="p">(</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">):</span>
+<span class="linenos">210</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">211</span><span class="sd">    Get the cost and usage breakdown by AWS service during the specified time period.</span>
+<span class="linenos">212</span>
+<span class="linenos">213</span><span class="sd">    Args:</span>
+<span class="linenos">214</span><span class="sd">        start_time (int): The start time in milliseconds.</span>
+<span class="linenos">215</span><span class="sd">        end_time (int): The end time in milliseconds.</span>
+<span class="linenos">216</span>
+<span class="linenos">217</span><span class="sd">    Returns:</span>
+<span class="linenos">218</span><span class="sd">        str: A string representing an HTML table with the cost and usage breakdown by service.</span>
+<span class="linenos">219</span>
+<span class="linenos">220</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">221</span>    <span class="n">start</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="n">start_time</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="linenos">222</span>    <span class="n">end</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="n">end_time</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="linenos">223</span>    <span class="k">if</span> <span class="n">start</span> <span class="o">&gt;=</span> <span class="n">end</span><span class="p">:</span>
+<span class="linenos">224</span>        <span class="k">return</span> <span class="s1">&#39;&lt;html&gt;&lt;body&gt;Please adjust the start and end dates to be greater than 1 day apart&lt;/body&gt;&lt;/html&gt;&#39;</span>
+<span class="linenos">225</span>
+<span class="linenos">226</span>    <span class="c1"># Create a session</span>
+<span class="linenos">227</span>    <span class="n">session</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+<span class="linenos">228</span>
+<span class="linenos">229</span>    <span class="c1"># Connect to Cost Explorer</span>
+<span class="linenos">230</span>    <span class="n">cost_explorer</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ce&quot;</span><span class="p">)</span>
+<span class="linenos">231</span>
+<span class="linenos">232</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos">233</span>        <span class="c1"># Get the cost and usage breakdown by service</span>
+<span class="linenos">234</span>        <span class="n">result</span> <span class="o">=</span> <span class="n">cost_explorer</span><span class="o">.</span><span class="n">get_cost_and_usage</span><span class="p">(</span>
+<span class="linenos">235</span>            <span class="n">TimePeriod</span><span class="o">=</span><span class="p">{</span>
+<span class="linenos">236</span>                <span class="s2">&quot;Start&quot;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span>
+<span class="linenos">237</span>                <span class="s2">&quot;End&quot;</span><span class="p">:</span> <span class="n">end</span>
+<span class="linenos">238</span>            <span class="p">},</span>
+<span class="linenos">239</span>            <span class="n">Granularity</span><span class="o">=</span><span class="s2">&quot;MONTHLY&quot;</span><span class="p">,</span>
+<span class="linenos">240</span>            <span class="n">Metrics</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;BlendedCost&quot;</span><span class="p">],</span>
+<span class="linenos">241</span>            <span class="n">GroupBy</span><span class="o">=</span><span class="p">[</span>
+<span class="linenos">242</span>                <span class="p">{</span>
+<span class="linenos">243</span>                    <span class="s2">&quot;Type&quot;</span><span class="p">:</span> <span class="s2">&quot;DIMENSION&quot;</span><span class="p">,</span>
+<span class="linenos">244</span>                    <span class="s2">&quot;Key&quot;</span><span class="p">:</span> <span class="s2">&quot;SERVICE&quot;</span>
+<span class="linenos">245</span>                <span class="p">}</span>
+<span class="linenos">246</span>            <span class="p">],</span>
+<span class="linenos">247</span>            <span class="n">Filter</span><span class="o">=</span><span class="p">{</span>
+<span class="linenos">248</span>                <span class="s2">&quot;Tags&quot;</span><span class="p">:</span> <span class="p">{</span>
+<span class="linenos">249</span>                    <span class="s2">&quot;Key&quot;</span><span class="p">:</span> <span class="s2">&quot;Project&quot;</span><span class="p">,</span>
+<span class="linenos">250</span>                    <span class="s2">&quot;Values&quot;</span><span class="p">:</span> <span class="p">[</span>
+<span class="linenos">251</span>                        <span class="n">project</span>
+<span class="linenos">252</span>                    <span class="p">]</span>
+<span class="linenos">253</span>                <span class="p">}</span>
+<span class="linenos">254</span>            <span class="p">}</span>
+<span class="linenos">255</span>        <span class="p">)</span>
+<span class="linenos">256</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">257</span>        <span class="k">if</span> <span class="s2">&quot;Start date (and hour) should be before end date (and hour)&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+<span class="linenos">258</span>            <span class="k">return</span> <span class="s1">&#39;&lt;html&gt;&lt;body&gt;Please adjust the start and end dates to be greater than 1 day apart&lt;/body&gt;&lt;/html&gt;&#39;</span>
+<span class="linenos">259</span>        <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos">260</span>
+<span class="linenos">261</span>    <span class="c1"># Extract the cost and usage data</span>
+<span class="linenos">262</span>    <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="linenos">263</span>    <span class="k">for</span> <span class="n">time_period</span> <span class="ow">in</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;ResultsByTime&quot;</span><span class="p">]:</span>
+<span class="linenos">264</span>        <span class="n">data</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">time_period</span><span class="p">[</span><span class="s2">&quot;Groups&quot;</span><span class="p">])</span>
+<span class="linenos">265</span>
+<span class="linenos">266</span>    <span class="c1"># Prepare the data for the table</span>
+<span class="linenos">267</span>    <span class="n">cost_and_usage</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="linenos">268</span>    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+<span class="linenos">269</span>        <span class="n">cost_and_usage</span><span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;Keys&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="linenos">270</span>                       <span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;Metrics&quot;</span><span class="p">][</span><span class="s2">&quot;BlendedCost&quot;</span><span class="p">][</span><span class="s2">&quot;Amount&quot;</span><span class="p">]</span>
+<span class="linenos">271</span>
+<span class="linenos">272</span>    <span class="c1"># Generate the table</span>
+<span class="linenos">273</span>    <span class="n">table</span> <span class="o">=</span> <span class="n">generate_table_cost</span><span class="p">(</span><span class="n">cost_and_usage</span><span class="p">)</span>
+<span class="linenos">274</span>
+<span class="linenos">275</span>    <span class="c1"># Return the table</span>
+<span class="linenos">276</span>    <span class="k">return</span> <span class="n">table</span>
+<span class="linenos">277</span>
+<span class="linenos">278</span>
+<span class="linenos">279</span><span class="k">def</span> <span class="nf">lambda_handler</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<span class="linenos">280</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">281</span><span class="sd">    AWS Lambda function handler.</span>
+<span class="linenos">282</span>
+<span class="linenos">283</span><span class="sd">    Args:</span>
+<span class="linenos">284</span><span class="sd">        event (dict): A dictionary representing the event that triggered the Lambda function.</span>
+<span class="linenos">285</span><span class="sd">        context (object): An object representing the runtime context of the Lambda function.</span>
+<span class="linenos">286</span>
+<span class="linenos">287</span><span class="sd">    Returns:</span>
+<span class="linenos">288</span><span class="sd">        str: A string representing an HTML table with the cost and usage breakdown by service, or the number of AWS Systems Manager commands in each status during the specified time period.</span>
+<span class="linenos">289</span>
+<span class="linenos">290</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">291</span>    <span class="n">start_time</span> <span class="o">=</span> <span class="n">event</span><span class="p">[</span><span class="s1">&#39;widgetContext&#39;</span><span class="p">][</span><span class="s1">&#39;timeRange&#39;</span><span class="p">][</span><span class="s1">&#39;start&#39;</span><span class="p">]</span>
+<span class="linenos">292</span>    <span class="n">end_time</span> <span class="o">=</span> <span class="n">event</span><span class="p">[</span><span class="s1">&#39;widgetContext&#39;</span><span class="p">][</span><span class="s1">&#39;timeRange&#39;</span><span class="p">][</span><span class="s1">&#39;end&#39;</span><span class="p">]</span>
+<span class="linenos">293</span>    <span class="n">query</span> <span class="o">=</span> <span class="n">event</span><span class="p">[</span><span class="s1">&#39;widgetContext&#39;</span><span class="p">][</span><span class="s1">&#39;params&#39;</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+<span class="linenos">294</span>    <span class="k">if</span> <span class="n">query</span> <span class="o">==</span> <span class="s2">&quot;getCostandUsage&quot;</span><span class="p">:</span>
+<span class="linenos">295</span>        <span class="n">html</span> <span class="o">=</span> <span class="n">get_cost_usage</span><span class="p">(</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">)</span>
+<span class="linenos">296</span>    <span class="k">elif</span> <span class="n">query</span> <span class="o">==</span> <span class="s2">&quot;getInvocationStatus&quot;</span><span class="p">:</span>
+<span class="linenos">297</span>        <span class="n">command_statuses</span> <span class="o">=</span> <span class="n">get_command_statuses</span><span class="p">(</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">)</span>
+<span class="linenos">298</span>        <span class="k">if</span> <span class="n">command_statuses</span> <span class="o">==</span> <span class="s2">&quot;Try Again&quot;</span><span class="p">:</span>
+<span class="linenos">299</span>            <span class="n">html</span> <span class="o">=</span> <span class="s2">&quot;&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Something went wrong: Please try again by using the refresh button.&lt;/b&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;&quot;</span>
+<span class="linenos">300</span>        <span class="k">else</span><span class="p">:</span>
+<span class="linenos">301</span>            <span class="n">html</span> <span class="o">=</span> <span class="n">generate_table_ssm</span><span class="p">(</span><span class="n">command_statuses</span><span class="p">)</span>
+<span class="linenos">302</span>    <span class="k">else</span><span class="p">:</span>
+<span class="linenos">303</span>        <span class="n">html</span> <span class="o">=</span> <span class="s2">&quot;No data&quot;</span>
+<span class="linenos">304</span>    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">html</span><span class="si">}</span><span class="s1">&#39;</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 

@@ -52,6 +52,7 @@
 <li class="toctree-l2"><a class="reference internal" href="SSMAgentActivation.html">SSMAgentActivation Documentation</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">SSMInstallScriptGenerator Documentation</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#module-SSMInstallScriptGenerator.index">Main module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#code">Code</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#module-SSMInstallScriptGenerator.sample">Sample module</a></li>
 </ul>
 </li>
@@ -95,6 +96,56 @@
 <dd><p>This function is used to generate the SSM install script for the customer</p>
 </dd></dl>
 
+</section>
+<section id="code">
+<h2>Code<a class="headerlink" href="#code" title="Permalink to this headline"></a></h2>
+<p>This section defines the code that is used.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 2</span><span class="sd">This function is used to generate the SSM install script for the customer</span>
+<span class="linenos"> 3</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span><span class="kn">from</span> <span class="nn">jinja2</span> <span class="kn">import</span> <span class="n">Environment</span><span class="p">,</span> <span class="n">FileSystemLoader</span>
+<span class="linenos"> 6</span><span class="kn">import</span> <span class="nn">boto3</span>
+<span class="linenos"> 7</span><span class="kn">import</span> <span class="nn">os</span>
+<span class="linenos"> 8</span><span class="kn">from</span> <span class="nn">aws_xray_sdk.core</span> <span class="kn">import</span> <span class="n">xray_recorder</span>
+<span class="linenos"> 9</span><span class="kn">from</span> <span class="nn">aws_xray_sdk.core</span> <span class="kn">import</span> <span class="n">patch_all</span>
+<span class="linenos">10</span><span class="n">patch_all</span><span class="p">()</span>
+<span class="linenos">11</span>
+<span class="linenos">12</span>
+<span class="linenos">13</span><span class="nd">@xray_recorder</span><span class="o">.</span><span class="n">capture</span><span class="p">(</span><span class="s1">&#39;lambda_handler&#39;</span><span class="p">)</span>
+<span class="linenos">14</span><span class="k">def</span> <span class="nf">lambda_handler</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<span class="linenos">15</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">16</span><span class="sd">    This function is used to generate the SSM install script for the customer</span>
+<span class="linenos">17</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">18</span>    <span class="c1"># get the template file</span>
+<span class="linenos">19</span>    <span class="n">env</span> <span class="o">=</span> <span class="n">Environment</span><span class="p">(</span><span class="n">loader</span><span class="o">=</span><span class="n">FileSystemLoader</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span>
+<span class="linenos">20</span>    <span class="n">template</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">get_template</span><span class="p">(</span><span class="s1">&#39;sample.py&#39;</span><span class="p">)</span>
+<span class="linenos">21</span>    <span class="n">bucket</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;BUCKET&#39;</span><span class="p">)</span>
+<span class="linenos">22</span>    <span class="c1"># Render the template with the environment variable</span>
+<span class="linenos">23</span>    <span class="n">OT_URL</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ONBOARD_TENANT_URL&#39;</span><span class="p">)</span>
+<span class="linenos">24</span>    <span class="n">SA_URL</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SAVE_ACTIVATION_URL&#39;</span><span class="p">)</span>
+<span class="linenos">25</span>    <span class="n">rendered_template</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">render</span><span class="p">(</span>
+<span class="linenos">26</span>        <span class="n">ONBOARD_TENANT_URL</span><span class="o">=</span><span class="n">OT_URL</span><span class="p">,</span> <span class="n">SAVE_ACTIVATION_URL</span><span class="o">=</span><span class="n">SA_URL</span><span class="p">)</span>
+<span class="linenos">27</span>
+<span class="linenos">28</span>    <span class="c1"># send response to api for file download</span>
+<span class="linenos">29</span>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;/tmp/install_ssmAgent.py&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="linenos">30</span>        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">rendered_template</span><span class="p">)</span>
+<span class="linenos">31</span>
+<span class="linenos">32</span>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;/tmp/install_ssmAgent.py&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="linenos">33</span>        <span class="n">file_data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<span class="linenos">34</span>    <span class="n">response</span> <span class="o">=</span> <span class="p">{</span>
+<span class="linenos">35</span>        <span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span>
+<span class="linenos">36</span>        <span class="s2">&quot;headers&quot;</span><span class="p">:</span> <span class="p">{</span>
+<span class="linenos">37</span>            <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/octet-stream&quot;</span><span class="p">,</span>
+<span class="linenos">38</span>            <span class="s2">&quot;Content-Disposition&quot;</span><span class="p">:</span> <span class="s2">&quot;attachment; filename=install_ssmAgent.py&quot;</span>
+<span class="linenos">39</span>        <span class="p">},</span>
+<span class="linenos">40</span>        <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">file_data</span>
+<span class="linenos">41</span>    <span class="p">}</span>
+<span class="linenos">42</span>
+<span class="linenos">43</span>    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;/tmp/install_ssmAgent.py&quot;</span><span class="p">)</span>
+<span class="linenos">44</span>    <span class="k">return</span> <span class="n">response</span>
+</pre></div>
+</div>
 </section>
 <section id="module-SSMInstallScriptGenerator.sample">
 <span id="sample-module"></span><h2>Sample module<a class="headerlink" href="#module-SSMInstallScriptGenerator.sample" title="Permalink to this headline"></a></h2>

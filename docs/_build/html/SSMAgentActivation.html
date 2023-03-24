@@ -50,7 +50,10 @@
 <li class="toctree-l2"><a class="reference internal" href="SSMNotification.html">SSMNotification Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="DashboardFunction.html">DashboardFunction Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="CustomAuthorizer.html">CustomAuthorizer Documentation</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">SSMAgentActivation Documentation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">SSMAgentActivation Documentation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#code">Code</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="SSMInstallScriptGenerator.html">SSMInstallScriptGenerator Documentation</a></li>
 </ul>
 </li>
@@ -252,6 +255,371 @@ activation_id (str): Activation id for SSM agent</p>
 </div>
 </dd></dl>
 
+<section id="code">
+<h2>Code<a class="headerlink" href="#code" title="Permalink to this headline"></a></h2>
+<p>This section defines the code that is used.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos">  1</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">  2</span><span class="sd">This function creates activation code and id for SSM agent and stores it in SSM parameter store. It also updates the activation code and id in SSM parameter store if the activation code is not expired and the registration limit is not reached. It also adds theater id as tags to the instance.</span>
+<span class="linenos">  3</span>
+<span class="linenos">  4</span><span class="sd">Functions:</span>
+<span class="linenos">  5</span><span class="sd">    - create_activation: This function creates activation code and id for SSM agent and stores it in SSM parameter store.</span>
+<span class="linenos">  6</span><span class="sd">    - update_ssm: This function updates the activation code and id in SSM parameter store if the activation code is not expired and the registration limit is not reached.</span>
+<span class="linenos">  7</span><span class="sd">    - add_tags: This function adds theater id as tags to the instance.</span>
+<span class="linenos">  8</span><span class="sd">    - update_table: This function updates the instance information in dynamodb table.</span>
+<span class="linenos">  9</span><span class="sd">    - get_activation_code_id: This function gets the activation code and id from SSM parameter store.</span>
+<span class="linenos"> 10</span><span class="sd">    - lambda_handler: This function is the entry point for the lambda function.</span>
+<span class="linenos"> 11</span>
+<span class="linenos"> 12</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 13</span>
+<span class="linenos"> 14</span><span class="kn">import</span> <span class="nn">boto3</span>
+<span class="linenos"> 15</span><span class="kn">import</span> <span class="nn">json</span>
+<span class="linenos"> 16</span><span class="kn">import</span> <span class="nn">os</span>
+<span class="linenos"> 17</span><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="linenos"> 18</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Tracer</span>
+<span class="linenos"> 19</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Metrics</span>
+<span class="linenos"> 20</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools.metrics</span> <span class="kn">import</span> <span class="n">MetricUnit</span>
+<span class="linenos"> 21</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools.utilities.typing</span> <span class="kn">import</span> <span class="n">LambdaContext</span>
+<span class="linenos"> 22</span><span class="kn">from</span> <span class="nn">aws_lambda_powertools</span> <span class="kn">import</span> <span class="n">Logger</span>
+<span class="linenos"> 23</span>
+<span class="linenos"> 24</span><span class="c1"># initialize powertools</span>
+<span class="linenos"> 25</span><span class="n">tracer</span> <span class="o">=</span> <span class="n">Tracer</span><span class="p">()</span>
+<span class="linenos"> 26</span><span class="n">metrics</span> <span class="o">=</span> <span class="n">Metrics</span><span class="p">()</span>
+<span class="linenos"> 27</span><span class="n">logger</span> <span class="o">=</span> <span class="n">Logger</span><span class="p">()</span>
+<span class="linenos"> 28</span>
+<span class="linenos"> 29</span><span class="c1"># initialize boto3 client and resource</span>
+<span class="linenos"> 30</span><span class="n">ssm_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ssm&quot;</span><span class="p">)</span>
+<span class="linenos"> 31</span><span class="n">dynamodb</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s2">&quot;dynamodb&quot;</span><span class="p">)</span>
+<span class="linenos"> 32</span>
+<span class="linenos"> 33</span><span class="c1"># initialize environment variables</span>
+<span class="linenos"> 34</span><span class="n">region</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;AWS_REGION&#39;</span><span class="p">)</span>
+<span class="linenos"> 35</span><span class="n">role</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SSM_ROLE&#39;</span><span class="p">)</span>
+<span class="linenos"> 36</span><span class="n">dynamodb_table</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;DYNAMODB_TABLE_ACTIVATIONS&#39;</span><span class="p">)</span>
+<span class="linenos"> 37</span><span class="n">project</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PROJECT_NAME&#39;</span><span class="p">)</span>
+<span class="linenos"> 38</span><span class="n">parameter</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SSM_PARAMETER&#39;</span><span class="p">)</span>
+<span class="linenos"> 39</span><span class="n">install_dependencies</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;INSTALL_DEPENDENCIES&#39;</span><span class="p">)</span>
+<span class="linenos"> 40</span>
+<span class="linenos"> 41</span>
+<span class="linenos"> 42</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos"> 43</span><span class="k">def</span> <span class="nf">install_deps</span><span class="p">(</span><span class="n">instance_id</span><span class="p">):</span>
+<span class="linenos"> 44</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 45</span><span class="sd">    This function installs dependencies on the instance.</span>
+<span class="linenos"> 46</span>
+<span class="linenos"> 47</span><span class="sd">    Parameters:</span>
+<span class="linenos"> 48</span><span class="sd">        instance_id (str): Instance id of the instance</span>
+<span class="linenos"> 49</span>
+<span class="linenos"> 50</span><span class="sd">    Returns:</span>
+<span class="linenos"> 51</span><span class="sd">        response (dict): Response from SSM command</span>
+<span class="linenos"> 52</span>
+<span class="linenos"> 53</span><span class="sd">    Example:</span>
+<span class="linenos"> 54</span><span class="sd">        &gt;&gt;&gt; response = install_deps(instance_id)</span>
+<span class="linenos"> 55</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos"> 56</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos"> 57</span>        <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">send_command</span><span class="p">(</span>
+<span class="linenos"> 58</span>            <span class="n">InstanceIds</span><span class="o">=</span><span class="p">[</span><span class="n">instance_id</span><span class="p">],</span>
+<span class="linenos"> 59</span>            <span class="n">DocumentName</span><span class="o">=</span><span class="n">install_dependencies</span><span class="p">,</span>
+<span class="linenos"> 60</span>            <span class="n">DocumentVersion</span><span class="o">=</span><span class="s2">&quot;$LATEST&quot;</span><span class="p">,</span>
+<span class="linenos"> 61</span>            <span class="n">TimeoutSeconds</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span>
+<span class="linenos"> 62</span>            <span class="n">Comment</span><span class="o">=</span><span class="s2">&quot;Installing dependencies&quot;</span>
+<span class="linenos"> 63</span>        <span class="p">)</span>
+<span class="linenos"> 64</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos"> 65</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos"> 66</span>        <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos"> 67</span>
+<span class="linenos"> 68</span>
+<span class="linenos"> 69</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos"> 70</span><span class="k">def</span> <span class="nf">create_activation</span><span class="p">(</span><span class="n">registration_limit</span><span class="p">):</span>
+<span class="linenos"> 71</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos"> 72</span><span class="sd">    This function creates activation code and id for SSM agent and stores it in SSM parameter store.</span>
+<span class="linenos"> 73</span>
+<span class="linenos"> 74</span><span class="sd">    Parameters:</span>
+<span class="linenos"> 75</span><span class="sd">        registration_limit (int): Registration limit for the activation code</span>
+<span class="linenos"> 76</span>
+<span class="linenos"> 77</span><span class="sd">    Returns:</span>
+<span class="linenos"> 78</span><span class="sd">        activation_code (str): Activation code for SSM agent</span>
+<span class="linenos"> 79</span><span class="sd">        activation_id (str): Activation id for SSM agent</span>
+<span class="linenos"> 80</span>
+<span class="linenos"> 81</span><span class="sd">    Example:</span>
+<span class="linenos"> 82</span><span class="sd">        &gt;&gt;&gt; activation_code, activation_id = create_activation(10)</span>
+<span class="linenos"> 83</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos"> 84</span>
+<span class="linenos"> 85</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos"> 86</span>        <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">create_activation</span><span class="p">(</span>
+<span class="linenos"> 87</span>            <span class="n">Description</span><span class="o">=</span><span class="s2">&quot;ExpeDat SSM Agent Activation&quot;</span><span class="p">,</span>
+<span class="linenos"> 88</span>            <span class="n">DefaultInstanceName</span><span class="o">=</span><span class="s2">&quot;TheaterBoxDCinema&quot;</span><span class="p">,</span>
+<span class="linenos"> 89</span>            <span class="n">IamRole</span><span class="o">=</span><span class="n">role</span><span class="p">,</span>
+<span class="linenos"> 90</span>            <span class="n">RegistrationLimit</span><span class="o">=</span><span class="n">registration_limit</span><span class="p">,</span>
+<span class="linenos"> 91</span>        <span class="p">)</span>
+<span class="linenos"> 92</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos"> 93</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos"> 94</span>        <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos"> 95</span>
+<span class="linenos"> 96</span>    <span class="k">return</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;ActivationCode&quot;</span><span class="p">],</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;ActivationId&quot;</span><span class="p">]</span>
+<span class="linenos"> 97</span>
+<span class="linenos"> 98</span>
+<span class="linenos"> 99</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos">100</span><span class="k">def</span> <span class="nf">update_ssm</span><span class="p">(</span><span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">registration_limit</span><span class="p">,</span> <span class="n">expiration</span><span class="p">):</span>
+<span class="linenos">101</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">102</span><span class="sd">    This function updates the activation code and id in SSM parameter store if the activation code is not expired and the registration limit is not reached.</span>
+<span class="linenos">103</span>
+<span class="linenos">104</span><span class="sd">    Parameters:</span>
+<span class="linenos">105</span><span class="sd">        activation_code (str): Activation code for SSM agent</span>
+<span class="linenos">106</span><span class="sd">        activation_id (str): Activation id for SSM agent</span>
+<span class="linenos">107</span><span class="sd">        count (int): Active count for the activation code</span>
+<span class="linenos">108</span><span class="sd">        registration_limit (int): Registration limit for the activation code</span>
+<span class="linenos">109</span><span class="sd">        expiration (str): Expiration date for the activation code</span>
+<span class="linenos">110</span>
+<span class="linenos">111</span><span class="sd">    Returns:</span>
+<span class="linenos">112</span><span class="sd">        response (dict): Response from SSM parameter store</span>
+<span class="linenos">113</span>
+<span class="linenos">114</span><span class="sd">    Example:</span>
+<span class="linenos">115</span><span class="sd">        &gt;&gt;&gt; response = update_ssm(activation_code, activation_id, count, registration_limit, expiration)</span>
+<span class="linenos">116</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">117</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos">118</span>        <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">put_parameter</span><span class="p">(</span>
+<span class="linenos">119</span>            <span class="n">Name</span><span class="o">=</span><span class="n">parameter</span><span class="p">,</span>
+<span class="linenos">120</span>            <span class="n">Value</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+<span class="linenos">121</span>                <span class="s2">&quot;ActivationId&quot;</span><span class="p">:</span> <span class="n">activation_id</span><span class="p">,</span>
+<span class="linenos">122</span>                <span class="s2">&quot;ActivationCode&quot;</span><span class="p">:</span> <span class="n">activation_code</span><span class="p">,</span>
+<span class="linenos">123</span>                <span class="s2">&quot;Expiration&quot;</span><span class="p">:</span> <span class="n">expiration</span><span class="p">,</span>
+<span class="linenos">124</span>                <span class="s2">&quot;ActiveCount&quot;</span><span class="p">:</span> <span class="n">count</span><span class="p">,</span>
+<span class="linenos">125</span>                <span class="s2">&quot;RegistrationLimit&quot;</span><span class="p">:</span> <span class="n">registration_limit</span>
+<span class="linenos">126</span>            <span class="p">}),</span>
+<span class="linenos">127</span>            <span class="n">Type</span><span class="o">=</span><span class="s2">&quot;String&quot;</span><span class="p">,</span>
+<span class="linenos">128</span>            <span class="n">Overwrite</span><span class="o">=</span><span class="kc">True</span>
+<span class="linenos">129</span>        <span class="p">)</span>
+<span class="linenos">130</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">131</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">132</span>        <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos">133</span>    <span class="k">return</span> <span class="n">response</span>
+<span class="linenos">134</span>
+<span class="linenos">135</span>
+<span class="linenos">136</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos">137</span><span class="k">def</span> <span class="nf">add_tags</span><span class="p">(</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">):</span>
+<span class="linenos">138</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">139</span><span class="sd">    This function adds theater id as tags to the instance.</span>
+<span class="linenos">140</span>
+<span class="linenos">141</span><span class="sd">    Parameters:</span>
+<span class="linenos">142</span><span class="sd">        instance_id (str): Instance id of the instance</span>
+<span class="linenos">143</span><span class="sd">        theater_id (str): Theater id of the instance</span>
+<span class="linenos">144</span>
+<span class="linenos">145</span><span class="sd">    Returns:</span>
+<span class="linenos">146</span><span class="sd">        response (dict): Response from SSM parameter store</span>
+<span class="linenos">147</span>
+<span class="linenos">148</span><span class="sd">    Example:</span>
+<span class="linenos">149</span><span class="sd">        &gt;&gt;&gt; response = add_tags(instance_id, theater_id)</span>
+<span class="linenos">150</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">151</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos">152</span>        <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">add_tags_to_resource</span><span class="p">(</span>
+<span class="linenos">153</span>            <span class="n">ResourceType</span><span class="o">=</span><span class="s2">&quot;ManagedInstance&quot;</span><span class="p">,</span>
+<span class="linenos">154</span>            <span class="n">ResourceId</span><span class="o">=</span><span class="n">instance_id</span><span class="p">,</span>
+<span class="linenos">155</span>            <span class="n">Tags</span><span class="o">=</span><span class="p">[</span>
+<span class="linenos">156</span>                <span class="p">{</span>
+<span class="linenos">157</span>                    <span class="s2">&quot;Key&quot;</span><span class="p">:</span> <span class="s2">&quot;TheaterId&quot;</span><span class="p">,</span>
+<span class="linenos">158</span>                    <span class="s2">&quot;Value&quot;</span><span class="p">:</span> <span class="n">theater_id</span>
+<span class="linenos">159</span>                <span class="p">},</span>
+<span class="linenos">160</span>                <span class="p">{</span>
+<span class="linenos">161</span>                    <span class="s2">&quot;Key&quot;</span><span class="p">:</span> <span class="s2">&quot;TheaterName&quot;</span><span class="p">,</span>
+<span class="linenos">162</span>                    <span class="s2">&quot;Value&quot;</span><span class="p">:</span> <span class="n">theater_name</span>
+<span class="linenos">163</span>                <span class="p">},</span>
+<span class="linenos">164</span>                <span class="p">{</span>
+<span class="linenos">165</span>                    <span class="s2">&quot;Key&quot;</span><span class="p">:</span> <span class="s2">&quot;UpdatedOn&quot;</span><span class="p">,</span>
+<span class="linenos">166</span>                    <span class="s2">&quot;Value&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span>
+<span class="linenos">167</span>
+<span class="linenos">168</span>                <span class="p">},</span>
+<span class="linenos">169</span>                <span class="p">{</span>
+<span class="linenos">170</span>                    <span class="s2">&quot;Key&quot;</span><span class="p">:</span> <span class="s2">&quot;TheaterEmail&quot;</span><span class="p">,</span>
+<span class="linenos">171</span>                    <span class="s2">&quot;Value&quot;</span><span class="p">:</span> <span class="n">theater_email</span>
+<span class="linenos">172</span>                <span class="p">},</span>
+<span class="linenos">173</span>                <span class="p">{</span>
+<span class="linenos">174</span>                    <span class="s2">&quot;Key&quot;</span><span class="p">:</span> <span class="s2">&quot;Project&quot;</span><span class="p">,</span>
+<span class="linenos">175</span>                    <span class="s2">&quot;Value&quot;</span><span class="p">:</span> <span class="n">project</span>
+<span class="linenos">176</span>                <span class="p">}</span>
+<span class="linenos">177</span>            <span class="p">]</span>
+<span class="linenos">178</span>        <span class="p">)</span>
+<span class="linenos">179</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">180</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">181</span>        <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos">182</span>    <span class="k">return</span> <span class="n">response</span>
+<span class="linenos">183</span>
+<span class="linenos">184</span>
+<span class="linenos">185</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos">186</span><span class="k">def</span> <span class="nf">update_table</span><span class="p">(</span><span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">):</span>
+<span class="linenos">187</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">188</span><span class="sd">    This function adds theater id&#39;s tags to the theater table.</span>
+<span class="linenos">189</span>
+<span class="linenos">190</span><span class="sd">    Parameters:</span>
+<span class="linenos">191</span><span class="sd">        instance_id (str): Instance id of the instance</span>
+<span class="linenos">192</span><span class="sd">        theater_id (str): Theater id of the instance</span>
+<span class="linenos">193</span>
+<span class="linenos">194</span><span class="sd">    Returns:</span>
+<span class="linenos">195</span><span class="sd">        response (dict): Response from SSM parameter store</span>
+<span class="linenos">196</span>
+<span class="linenos">197</span><span class="sd">    Example:</span>
+<span class="linenos">198</span><span class="sd">        &gt;&gt;&gt; response = add_tags(instance_id, theater_id, theater_name, theater_email)</span>
+<span class="linenos">199</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">200</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos">201</span>        <span class="n">table</span> <span class="o">=</span> <span class="n">dynamodb</span><span class="o">.</span><span class="n">Table</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;DYNAMODB_TABLE_THEATER&#39;</span><span class="p">))</span>
+<span class="linenos">202</span>
+<span class="linenos">203</span>        <span class="n">response</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">put_item</span><span class="p">(</span>
+<span class="linenos">204</span>            <span class="n">Item</span><span class="o">=</span><span class="p">{</span>
+<span class="linenos">205</span>                <span class="s1">&#39;TheaterId&#39;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span>
+<span class="linenos">206</span>                <span class="s1">&#39;TheaterName&#39;</span><span class="p">:</span> <span class="n">theater_name</span><span class="p">,</span>
+<span class="linenos">207</span>                <span class="s1">&#39;TheaterEmail&#39;</span><span class="p">:</span> <span class="n">theater_email</span><span class="p">,</span>
+<span class="linenos">208</span>                <span class="s1">&#39;InstanceId&#39;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+<span class="linenos">209</span>                <span class="s1">&#39;UpdatedOn&#39;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span>
+<span class="linenos">210</span>
+<span class="linenos">211</span>            <span class="p">}</span>
+<span class="linenos">212</span>        <span class="p">)</span>
+<span class="linenos">213</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">214</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">215</span>        <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos">216</span>    <span class="k">return</span> <span class="n">response</span>
+<span class="linenos">217</span>
+<span class="linenos">218</span>
+<span class="linenos">219</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_method</span><span class="p">(</span><span class="n">capture_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="linenos">220</span><span class="k">def</span> <span class="nf">get_activation_code_id</span><span class="p">():</span>
+<span class="linenos">221</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">222</span><span class="sd">    This function gets activation code and id from SSM parameter store if the activation code is not expired and the registration limit is not reached. If the activation code is expired or the registration limit is reached, it creates a new activation code and id and stores it in SSM parameter store.</span>
+<span class="linenos">223</span>
+<span class="linenos">224</span><span class="sd">    Returns:</span>
+<span class="linenos">225</span><span class="sd">        activation_code (str): Activation code for SSM agent</span>
+<span class="linenos">226</span><span class="sd">        activation_id (str): Activation id for SSM agent</span>
+<span class="linenos">227</span>
+<span class="linenos">228</span><span class="sd">    Example:</span>
+<span class="linenos">229</span><span class="sd">        &gt;&gt;&gt; activation_code, activation_id = get_activation_code_id()</span>
+<span class="linenos">230</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">231</span>    <span class="k">try</span><span class="p">:</span>
+<span class="linenos">232</span>        <span class="n">response</span> <span class="o">=</span> <span class="n">ssm_client</span><span class="o">.</span><span class="n">get_parameter</span><span class="p">(</span>
+<span class="linenos">233</span>            <span class="n">Name</span><span class="o">=</span><span class="n">parameter</span><span class="p">,</span>
+<span class="linenos">234</span>            <span class="n">WithDecryption</span><span class="o">=</span><span class="kc">False</span>
+<span class="linenos">235</span>        <span class="p">)</span>
+<span class="linenos">236</span>        <span class="n">item</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="s2">&quot;Parameter&quot;</span><span class="p">][</span><span class="s2">&quot;Value&quot;</span><span class="p">])</span>
+<span class="linenos">237</span>        <span class="n">count</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ActiveCount&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+<span class="linenos">238</span>        <span class="n">registration_limit</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;RegistrationLimit&quot;</span><span class="p">]</span>
+<span class="linenos">239</span>        <span class="n">expiration_date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span>
+<span class="linenos">240</span>            <span class="n">item</span><span class="p">[</span><span class="s2">&quot;Expiration&quot;</span><span class="p">],</span> <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+<span class="linenos">241</span>        <span class="k">if</span> <span class="n">expiration_date</span> <span class="o">&gt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">date</span><span class="p">():</span>
+<span class="linenos">242</span>            <span class="k">if</span> <span class="n">count</span> <span class="o">&lt;</span> <span class="n">registration_limit</span><span class="p">:</span>
+<span class="linenos">243</span>                <span class="n">ssm_client</span><span class="o">.</span><span class="n">put_parameter</span><span class="p">(</span>
+<span class="linenos">244</span>                    <span class="n">Name</span><span class="o">=</span><span class="n">parameter</span><span class="p">,</span>
+<span class="linenos">245</span>                    <span class="n">Value</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+<span class="linenos">246</span>                        <span class="s2">&quot;ActivationId&quot;</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;ActivationId&quot;</span><span class="p">],</span>
+<span class="linenos">247</span>                        <span class="s2">&quot;ActivationCode&quot;</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;ActivationCode&quot;</span><span class="p">],</span>
+<span class="linenos">248</span>                        <span class="s2">&quot;Expiration&quot;</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;Expiration&quot;</span><span class="p">],</span>
+<span class="linenos">249</span>                        <span class="s2">&quot;ActiveCount&quot;</span><span class="p">:</span> <span class="n">count</span><span class="p">,</span>
+<span class="linenos">250</span>                        <span class="s2">&quot;RegistrationLimit&quot;</span><span class="p">:</span> <span class="n">registration_limit</span>
+<span class="linenos">251</span>                    <span class="p">}),</span>
+<span class="linenos">252</span>                    <span class="n">Type</span><span class="o">=</span><span class="s2">&quot;String&quot;</span><span class="p">,</span>
+<span class="linenos">253</span>                    <span class="n">Overwrite</span><span class="o">=</span><span class="kc">True</span>
+<span class="linenos">254</span>                <span class="p">)</span>
+<span class="linenos">255</span>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Updated ActiveCount in ssm parameter&quot;</span><span class="p">)</span>
+<span class="linenos">256</span>                <span class="k">return</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;ActivationCode&quot;</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;ActivationId&quot;</span><span class="p">]</span>
+<span class="linenos">257</span>            <span class="k">else</span><span class="p">:</span>
+<span class="linenos">258</span>                <span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span> <span class="o">=</span> <span class="n">create_activation</span><span class="p">(</span>
+<span class="linenos">259</span>                    <span class="n">registration_limit</span><span class="p">)</span>
+<span class="linenos">260</span>                <span class="n">expiration</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">+</span>
+<span class="linenos">261</span>                              <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">28</span><span class="p">))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="linenos">262</span>                <span class="n">update_ssm</span><span class="p">(</span><span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span><span class="p">,</span>
+<span class="linenos">263</span>                           <span class="mi">0</span><span class="p">,</span> <span class="n">registration_limit</span><span class="p">,</span> <span class="n">expiration</span><span class="p">)</span>
+<span class="linenos">264</span>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Created new activation code and id&quot;</span><span class="p">)</span>
+<span class="linenos">265</span>                <span class="k">return</span> <span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span>
+<span class="linenos">266</span>        <span class="k">else</span><span class="p">:</span>
+<span class="linenos">267</span>            <span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span> <span class="o">=</span> <span class="n">create_activation</span><span class="p">(</span>
+<span class="linenos">268</span>                <span class="n">registration_limit</span><span class="p">)</span>
+<span class="linenos">269</span>            <span class="n">expiration</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">28</span><span class="p">)</span>
+<span class="linenos">270</span>                          <span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="linenos">271</span>            <span class="n">update_ssm</span><span class="p">(</span><span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span><span class="p">,</span>
+<span class="linenos">272</span>                       <span class="mi">0</span><span class="p">,</span> <span class="n">registration_limit</span><span class="p">,</span> <span class="n">expiration</span><span class="p">)</span>
+<span class="linenos">273</span>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Created new activation code and id&quot;</span><span class="p">)</span>
+<span class="linenos">274</span>            <span class="k">return</span> <span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span>
+<span class="linenos">275</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">276</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">277</span>        <span class="k">raise</span> <span class="n">e</span>
+<span class="linenos">278</span>
+<span class="linenos">279</span>
+<span class="linenos">280</span><span class="nd">@logger</span><span class="o">.</span><span class="n">inject_lambda_context</span><span class="p">(</span><span class="n">log_event</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="linenos">281</span><span class="nd">@tracer</span><span class="o">.</span><span class="n">capture_lambda_handler</span>
+<span class="linenos">282</span><span class="k">def</span> <span class="nf">lambda_handler</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="n">LambdaContext</span><span class="p">):</span>
+<span class="linenos">283</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="linenos">284</span><span class="sd">    This function is the entry point for the lambda function. It checks the api path and calls the respective function.</span>
+<span class="linenos">285</span>
+<span class="linenos">286</span><span class="sd">    Parameters:</span>
+<span class="linenos">287</span><span class="sd">        event (dict): Event data passed to the lambda function</span>
+<span class="linenos">288</span><span class="sd">        context (LambdaContext): Lambda context object</span>
+<span class="linenos">289</span>
+<span class="linenos">290</span><span class="sd">    Returns:</span>
+<span class="linenos">291</span><span class="sd">        response (dict): Response from the function</span>
+<span class="linenos">292</span>
+<span class="linenos">293</span><span class="sd">    &quot;&quot;&quot;</span>
+<span class="linenos">294</span>
+<span class="linenos">295</span>    <span class="c1"># check api path to see if the request is for activation code and id or to add theater id as tags to the instance</span>
+<span class="linenos">296</span>    <span class="n">event_path</span> <span class="o">=</span> <span class="n">event</span><span class="p">[</span><span class="s2">&quot;path&quot;</span><span class="p">]</span>
+<span class="linenos">297</span>    <span class="k">if</span> <span class="n">event_path</span> <span class="o">==</span> <span class="s2">&quot;/addtags&quot;</span><span class="p">:</span>
+<span class="linenos">298</span>        <span class="c1"># add theater id as tags to the instance</span>
+<span class="linenos">299</span>        <span class="n">body</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">])</span>
+<span class="linenos">300</span>        <span class="n">instance_id</span> <span class="o">=</span> <span class="n">body</span><span class="p">[</span><span class="s2">&quot;machine_id&quot;</span><span class="p">]</span>
+<span class="linenos">301</span>        <span class="n">theater_id</span> <span class="o">=</span> <span class="n">body</span><span class="p">[</span><span class="s2">&quot;theater_id&quot;</span><span class="p">]</span>
+<span class="linenos">302</span>        <span class="n">theater_name</span> <span class="o">=</span> <span class="n">body</span><span class="p">[</span><span class="s2">&quot;theater_name&quot;</span><span class="p">]</span>
+<span class="linenos">303</span>        <span class="n">theater_email</span> <span class="o">=</span> <span class="n">body</span><span class="p">[</span><span class="s2">&quot;theater_email&quot;</span><span class="p">]</span>
+<span class="linenos">304</span>        <span class="k">try</span><span class="p">:</span>
+<span class="linenos">305</span>            <span class="n">tag_response</span> <span class="o">=</span> <span class="n">add_tags</span><span class="p">(</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">theater_id</span><span class="p">,</span>
+<span class="linenos">306</span>                                    <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">)</span>
+<span class="linenos">307</span>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Added tags to the instance&quot;</span><span class="p">)</span>
+<span class="linenos">308</span>
+<span class="linenos">309</span>            <span class="c1"># add theater id, name and instance id to dynamodb table</span>
+<span class="linenos">310</span>            <span class="n">table_response</span> <span class="o">=</span> <span class="n">update_table</span><span class="p">(</span>
+<span class="linenos">311</span>                <span class="n">theater_id</span><span class="p">,</span> <span class="n">theater_name</span><span class="p">,</span> <span class="n">theater_email</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">)</span>
+<span class="linenos">312</span>
+<span class="linenos">313</span>            <span class="c1"># run install dependencies ssm run document on the instance</span>
+<span class="linenos">314</span>            <span class="n">ssm_response</span> <span class="o">=</span> <span class="n">install_deps</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+<span class="linenos">315</span>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Ran install dependencies ssm run document&quot;</span><span class="p">)</span>
+<span class="linenos">316</span>
+<span class="linenos">317</span>            <span class="k">return</span> <span class="p">{</span>
+<span class="linenos">318</span>                <span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span>
+<span class="linenos">319</span>                <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+<span class="linenos">320</span>                    <span class="p">{</span>
+<span class="linenos">321</span>                        <span class="s2">&quot;Message&quot;</span><span class="p">:</span> <span class="s2">&quot;TheaterId tag added successfully to the instance&quot;</span><span class="p">,</span>
+<span class="linenos">322</span>                        <span class="s2">&quot;TheaterId&quot;</span><span class="p">:</span> <span class="n">theater_id</span><span class="p">,</span>
+<span class="linenos">323</span>                        <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+<span class="linenos">324</span>                    <span class="p">}</span>
+<span class="linenos">325</span>                <span class="p">),</span>
+<span class="linenos">326</span>            <span class="p">}</span>
+<span class="linenos">327</span>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="linenos">328</span>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="linenos">329</span>            <span class="k">return</span> <span class="p">{</span>
+<span class="linenos">330</span>                <span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span>
+<span class="linenos">331</span>                <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+<span class="linenos">332</span>                    <span class="p">{</span>
+<span class="linenos">333</span>                        <span class="s2">&quot;Message&quot;</span><span class="p">:</span> <span class="s2">&quot;Error adding tags to the instance&quot;</span>
+<span class="linenos">334</span>                    <span class="p">}</span>
+<span class="linenos">335</span>                <span class="p">)</span>
+<span class="linenos">336</span>            <span class="p">}</span>
+<span class="linenos">337</span>
+<span class="linenos">338</span>    <span class="c1"># get activation code and id</span>
+<span class="linenos">339</span>    <span class="k">elif</span> <span class="n">event_path</span> <span class="o">==</span> <span class="s2">&quot;/ssmactivation&quot;</span><span class="p">:</span>
+<span class="linenos">340</span>        <span class="n">activation_code</span><span class="p">,</span> <span class="n">activation_id</span> <span class="o">=</span> <span class="n">get_activation_code_id</span><span class="p">()</span>
+<span class="linenos">341</span>        <span class="k">return</span> <span class="p">{</span>
+<span class="linenos">342</span>            <span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span>
+<span class="linenos">343</span>            <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+<span class="linenos">344</span>                <span class="p">{</span>
+<span class="linenos">345</span>                    <span class="s2">&quot;ActivationId&quot;</span><span class="p">:</span> <span class="n">activation_id</span><span class="p">,</span>
+<span class="linenos">346</span>                    <span class="s2">&quot;ActivationCode&quot;</span><span class="p">:</span> <span class="n">activation_code</span><span class="p">,</span>
+<span class="linenos">347</span>                    <span class="s2">&quot;Region&quot;</span><span class="p">:</span> <span class="n">region</span><span class="p">,</span>
+<span class="linenos">348</span>                <span class="p">}</span>
+<span class="linenos">349</span>            <span class="p">)</span>
+<span class="linenos">350</span>        <span class="p">}</span>
+<span class="linenos">351</span>    <span class="k">else</span><span class="p">:</span>
+<span class="linenos">352</span>        <span class="k">return</span> <span class="p">{</span>
+<span class="linenos">353</span>            <span class="s2">&quot;statusCode&quot;</span><span class="p">:</span> <span class="mi">404</span><span class="p">,</span>
+<span class="linenos">354</span>            <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+<span class="linenos">355</span>                <span class="p">{</span>
+<span class="linenos">356</span>                    <span class="s2">&quot;Message&quot;</span><span class="p">:</span> <span class="s2">&quot;Invalid path&quot;</span>
+<span class="linenos">357</span>                <span class="p">}</span>
+<span class="linenos">358</span>            <span class="p">)</span>
+<span class="linenos">359</span>        <span class="p">}</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 
