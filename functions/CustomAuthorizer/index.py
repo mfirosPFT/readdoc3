@@ -1,5 +1,5 @@
 """
-This function authorizes an API Gateway request using an API key stored in AWS Secrets Manager. The API key is cached in environment variables to avoid unnecessary calls to AWS Secrets Manager. This function is intended to be used as a custom authorizer for API Gateway. 
+This function authorizes an API Gateway request using an API key stored in AWS Secrets Manager. The API key is cached in environment variables to avoid unnecessary calls to AWS Secrets Manager. This function is intended to be used as a custom authorizer for API Gateway.
 
 
 """
@@ -17,7 +17,8 @@ from botocore.exceptions import ClientError
 logger = Logger()
 tracer = Tracer()
 
-secrets_client = boto3.client('secretsmanager')
+secrets_client = boto3.client(
+    'secretsmanager', region_name=os.environ['AWS_REGION'])
 
 
 def fetch_secret_value() -> Dict[str, Any]:
